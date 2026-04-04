@@ -132,7 +132,9 @@ def save_results(results: dict, path: str) -> None:
 
     serializable = {}
     for k, v in results.items():
-        if isinstance(v, list):
+        if isinstance(v, dict):
+            serializable[k] = v
+        elif isinstance(v, list):
             serializable[k] = [float(x) for x in v]
         elif isinstance(v, (int, float, str)):
             serializable[k] = v
