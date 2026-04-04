@@ -1,0 +1,7 @@
+data/
+results/*.pt
+results/*.pkl
+__pycache__/
+*.pyc
+.venv/
+notebooks/.ipynb_checkpoints/
