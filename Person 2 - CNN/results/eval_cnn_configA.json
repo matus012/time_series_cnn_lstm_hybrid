@@ -1,0 +1,26 @@
+{
+    "model": "cnn_configA",
+    "target_column": 1,
+    "window_size": 24,
+    "config": {
+        "name": "configA",
+        "channels_1": 32,
+        "channels_2": 64,
+        "kernel_size_1": 3,
+        "kernel_size_2": 3,
+        "dropout": 0.2,
+        "lr": 0.001,
+        "window_size": 24,
+        "batch_size": 64
+    },
+    "metrics": {
+        "mse_scaled": 0.03119419887661934,
+        "rmse_scaled": 0.17661879536623315,
+        "mae_scaled": 0.1354769617319107,
+        "mse_real": 2.3367867469787598,
+        "rmse_real": 1.528655208665041,
+        "mae_real": 1.1725679636001587,
+        "r2_real": 0.9614597839728726,
+        "num_test_samples": 10490
+    }
+}
