@@ -1,0 +1,51 @@
+\subsection{CNN-LSTM hybrid model}
+
+The hybrid model combines a 1D convolutional block with an LSTM block in a sequential manner. The CNN extracts local temporal patterns from the raw input sequence, and the LSTM then models long-range temporal dependencies on these higher-level features. This design aims to combine the strengths of both architectures: CNN efficiency in capturing local patterns, and LSTM capability of modelling sequential dependencies.
+
+The model receives input of shape $(\text{batch}, \text{window\_size}, 14)$ and produces a single predicted temperature value. Inside the model, the input is first permuted for Conv1D processing, passed through two stacked Conv1D layers with ReLU activations and a MaxPool1d layer, then permuted back and fed into a multi-layer LSTM. The hidden state from the last timestep is passed through a linear layer to produce the final scalar prediction.
+
+\paragraph{Parameter choices specific to the hybrid.}
+Rather than copying hyperparameters from the standalone LSTM or CNN models, we deliberately adjusted several parameters to suit the hybrid architecture:
+
+\begin{itemize}
+    \item \textbf{Input window size: $48$ (instead of $24$).} The MaxPool1d layer halves the sequence length inside the CNN block, so an input of length $48$ produces $24$ timesteps for the LSTM — matching the context available to the standalone LSTM working on raw data.
+    \item \textbf{LSTM hidden size: $32$ (instead of $64$).} Since the CNN already compresses the $14$ raw features into higher-level representations, the LSTM requires less capacity to retain relevant information. A smaller hidden size also reduces overfitting risk in the combined CNN+LSTM architecture.
+    \item \textbf{CNN kernel size: $5$.} A wider kernel provides richer local context per extracted feature, allowing the LSTM to focus on long-range dependencies rather than re-capturing short-term trends. This parameter choice directly optimises the division of labour between the CNN and LSTM components.
+    \item \textbf{MaxPool1d with kernel size $2$.} The standalone CNN uses AdaptiveAvgPool1d($1$), which collapses the entire sequence into a single vector — appropriate when the CNN output goes directly to a linear layer. In the hybrid, we must preserve the sequence dimension for the LSTM, so MaxPool1d($2$) is used as a compromise between noise reduction and maintaining sufficient temporal context.
+\end{itemize}
+
+Other parameters were intentionally kept identical to the standalone models: dropout $0.2$, learning rate $10^{-3}$, batch size $64$, maximum $50$ epochs, and early stopping with patience $10$. These training-related parameters have no hybrid-specific justification to change and keeping them fixed ensures fair comparison across LSTM, CNN, and hybrid models.
+
+\paragraph{Tested configurations.}
+We evaluated two configurations that differ only in the number of LSTM layers, strictly following the project rule of changing a single variable between configurations:
+
+\begin{itemize}
+    \item Config A: $2$ LSTM layers
+    \item Config B: $3$ LSTM layers
+\end{itemize}
+
+The choice of \texttt{lstm\_num\_layers} as the varying parameter was motivated by a hybrid-specific research question: \emph{Does the LSTM require additional depth when the CNN has already extracted features?} The standalone LSTM author tested hidden size variations ($64$ vs $128$), and the standalone CNN author tested channel and kernel size variations. None of these experiments addressed LSTM depth in the context of CNN-preprocessed features, making this a meaningful contribution to the project. We chose the range $2$ vs $3$ (rather than $1$ vs $2$) because PyTorch disables LSTM dropout when \texttt{num\_layers=1}, which would implicitly change two parameters simultaneously. With $2$ vs $3$ layers, dropout remains active in both configurations and only one variable truly changes.
+
+Training used the shared training pipeline with the Adam optimizer, MSE loss, and ReduceLROnPlateau scheduler. All experiments were run on CPU with random seed $42$ for reproducibility.
+
+\paragraph{Results.}
+The final test results on the Jena Climate test set are summarised below:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccccc}
+\hline
+Model & Window & Params & MAE [$^\circ$C] & RMSE [$^\circ$C] & $R^2$ \\
+\hline
+Hybrid Config A ($2$ layers) & $48$ & $46{,}113$ & $0.4938$ & $0.6908$ & $0.9921$ \\
+Hybrid Config B ($3$ layers) & $48$ & $54{,}561$ & $0.5129$ & $0.7085$ & $0.9917$ \\
+\hline
+\end{tabular}
+\caption{Final hybrid CNN-LSTM results on the test set}
+\end{table}
+
+Config A ($2$ LSTM layers) outperformed Config B ($3$ layers) across all metrics, albeit by a small margin. This result supports our hypothesis: once the CNN has extracted meaningful local features, the LSTM does not benefit from additional depth. The extra layer in Config B introduces more parameters ($+18\%$) without improving predictive performance, and likely slightly increases overfitting risk.
+
+The best hybrid model (Config A) achieves MAE of $0.49\,^\circ$C and $R^2 = 0.9921$, indicating that on average the prediction error is less than half a degree Celsius. This demonstrates that the hybrid architecture is a viable approach for multivariate time series forecasting, combining CNN feature extraction with LSTM sequential modelling in a parameter-efficient way.
+
+For the hybrid part, the final selected model is \textbf{Config A} with $2$ LSTM layers, as it achieved the best accuracy with fewer parameters than Config B.
