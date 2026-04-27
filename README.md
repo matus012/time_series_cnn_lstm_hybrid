@@ -1,19 +1,32 @@
 # NN Time Series Comparison
 
-Comparing CNN, LSTM, and CNN-LSTM hybrid on Jena Climate dataset (temperature prediction). PyTorch.
+Comparison of **CNN**, **LSTM**, and **CNN-LSTM hybrid** models for multivariate time-series forecasting on the **Jena Climate dataset** using **PyTorch**.
+
+## Project Goal
+The goal of this project is to compare three neural network architectures for temperature prediction from multivariate weather time series:
+
+- **1D-CNN**
+- **LSTM**
+- **CNN-LSTM hybrid**
+
+We focus on:
+- prediction accuracy (**RMSE**, **MAE**),
+- effect of input window size (**24 vs 48**),
+- number of parameters,
+- training time,
+- convergence stability,
+- and qualitative error analysis.
 
 ## Team
-- Person 1: Data pipeline, shared training infra, LSTM
-- Person 2: CNN
-- Person 3: CNN-LSTM Hybrid
-- Person 4: Evaluation & analysis
+- **Person 1**: Data pipeline, shared training infrastructure, LSTM
+- **Person 2**: CNN
+- **Person 3**: CNN-LSTM Hybrid
+- **Person 4**: Evaluation, plots, analysis, report integration
 
-## Setup
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+## Dataset
+We use the **Jena Climate Dataset**.
 
-Download Jena Climate dataset CSV into data/jena_climate_2009_2016.csv
+Place the dataset CSV file here:
 
-## Run
-python src/train.py
+```text
+data/jena_climate_2009_2016.csv
