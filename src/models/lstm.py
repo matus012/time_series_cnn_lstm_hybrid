@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class LSTMModel(nn.Module):
-    """LSTM-based model for univariate time series forecasting.
+    """LSTM model for multivariate time series forecasting.
 
     Input:  (batch, window_size, input_size) — all 14 features
     Output: (batch, 1) — predicted temperature

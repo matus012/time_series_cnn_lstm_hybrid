@@ -1,0 +1,433 @@
+NÁVRH PODROBNÉHO WORKFLOW DOKUMENTU S LEGENDOU POJMOV A DEFINÍCIAMI
+SLOVENSKÁ VERZIA
+
+Názov projektu:
+Porovnanie CNN, LSTM a hybridného modelu CNN-LSTM pre predikciu časových radov na datasete Jena Climate
+
+1. ÚČEL TOHTO DOKUMENTU
+
+Tento dokument slúži ako podrobný sprievodca celým projektom. Jeho cieľom je vysvetliť:
+- čo bolo predmetom projektu,
+- aké dáta sa použili,
+- ako boli dáta spracované,
+- aké modely boli implementované,
+- ako prebiehalo trénovanie a vyhodnocovanie,
+- ako treba interpretovať výsledky,
+- a čo znamenajú základné pojmy použité v projekte.
+
+Dokument je napísaný tak, aby mu rozumel aj nový čitateľ, ktorý projekt predtým nevidel. Má slúžiť ako interný zdroj materiálu pre finálny report, prezentáciu a obhajobu.
+
+2. HLAVNÁ IDEA PROJEKTU
+
+Projekt je zameraný na predikciu teploty z meteorologického časového radu. Na vstup sa používajú viaceré meteorologické premenné a úlohou modelu je odhadnúť budúcu hodnotu teploty.
+
+V projekte sa porovnávajú tri rôzne architektúry neurónových sietí:
+- CNN,
+- LSTM,
+- Hybrid CNN-LSTM.
+
+Porovnanie sa robí na spoločnom datasete, pri spoločnej pipeline spracovania dát a pri spoločnej metodike trénovania a evaluácie. To je dôležité, pretože iba tak sa dá férovo povedať, ktorý model je lepší a v čom.
+
+3. ČO JE TO ČASOVÝ RAD
+
+Časový rad je postupnosť hodnôt usporiadaných v čase. V našom prípade ide o meteorologické merania, ktoré boli zaznamenané v rôznych časových bodoch.
+
+Príklad:
+- teplota o 10:00,
+- teplota o 11:00,
+- teplota o 12:00,
+- a tak ďalej.
+
+Pri časovom rade je dôležité poradie hodnôt. Na rozdiel od bežných tabuliek tu záleží na tom, čo bolo skôr a čo neskôr.
+
+4. ČO JE TO MULTIVARIÁTNY ČASOVÝ RAD
+
+Multivariátny časový rad znamená, že v každom časovom kroku nemáme iba jednu hodnotu, ale viacero premenných.
+
+V našom projekte model nedostáva iba teplotu, ale viacero meteorologických príznakov naraz, napríklad:
+- tlak,
+- teplotu,
+- vlhkosť,
+- ďalšie odvodené fyzikálne veličiny.
+
+To znamená, že model sa učí z viacerých súvisiacich informácií, nie iba z jednej samostatnej veličiny.
+
+5. ČO BOLO PRESNOU ÚLOHOU MODELU
+
+Úlohou modelu bolo:
+- pozrieť sa na posledných niekoľko časových krokov,
+- zobrať z nich všetky vstupné príznaky,
+- a predikovať nasledujúcu hodnotu cieľovej premennej.
+
+Cieľová premenná bola:
+- T (degC), teda teplota v stupňoch Celzia.
+
+Nešlo teda o klasifikáciu, ale o regresiu.
+To znamená, že výstup modelu je reálne číslo.
+
+6. PREČO SME POUŽILI JENA CLIMATE DATASET
+
+Jena Climate dataset je vhodný pre forecasting, pretože:
+- obsahuje dlhú sekvenciu reálnych meteorologických meraní,
+- obsahuje viacero numerických vstupných príznakov,
+- má prirodzenú časovú štruktúru,
+- je dostatočne veľký na tréning neurónových sietí,
+- a je často používaný ako benchmark v úlohách predikcie časových radov.
+
+Preto je vhodný na porovnanie rôznych architektúr.
+
+7. PREHĽAD CELÉHO WORKFLOW
+
+Celý projekt sa dá zjednodušene rozdeliť na tieto fázy:
+
+1. výber datasetu,
+2. návrh spoločnej dátovej pipeline,
+3. načítanie a čistenie dát,
+4. chronologické rozdelenie dát,
+5. škálovanie a normalizácia,
+6. tvorba sliding windows,
+7. implementácia modelov,
+8. tréning modelov,
+9. ukladanie checkpointov a štatistík,
+10. evaluácia modelov,
+11. generovanie grafov,
+12. spoločné porovnanie modelov,
+13. interpretácia výsledkov,
+14. príprava reportu a prezentácie.
+
+Každá fáza mala v projekte svoj význam a spolu vytvorili kompletný experimentálny workflow.
+
+8. PODROBNÝ WORKFLOW – KROK ZA KROKOM
+
+8.1 Výber datasetu
+Najprv sa vybral dataset Jena Climate. Tým sa stanovila dátová základňa celého projektu.
+
+Dôležité bolo:
+- pracovať všetci s rovnakým datasetom,
+- používať rovnakú cieľovú premennú,
+- a mať rovnakú metodiku spracovania.
+
+8.2 Návrh zdieľanej pipeline
+Aby bolo porovnanie modelov férové, všetci členovia tímu používali rovnakú pipeline spracovania dát.
+
+To znamená, že:
+- rovnaké vstupné dáta išli do všetkých modelov,
+- rovnakým spôsobom sa delili na train/validation/test,
+- rovnakým spôsobom sa škálovali,
+- a rovnakým spôsobom sa menili na sliding-window formát.
+
+Tým sa zabezpečilo, že rozdiely vo výsledkoch budú vyplývať hlavne z architektúry modelu, nie z odlišného spracovania dát.
+
+8.3 Načítanie dát
+CSV súbor sa načítal do tabuľkovej formy. Stĺpec Date Time sa spracoval ako časový index.
+
+Tento krok bol dôležitý preto, aby sa zachovalo správne časové poradie záznamov.
+
+8.4 Výber numerických stĺpcov
+Z datasetu sa ponechali len číselné stĺpce.
+
+Dôvod:
+neurónové siete v tejto implementácii pracovali s numerickými vstupmi a nechceli sme do modelu dávať textové alebo nevyužité časové reprezentácie.
+
+8.5 Subsampling
+Pôvodné merania mali jemné časové rozlíšenie. Kvôli zníženiu výpočtovej náročnosti a zároveň zachovaniu dôležitého trendu sa ponechal každý 6. riadok.
+
+Výsledok:
+- z 10-minútového rozlíšenia vzniklo hodinové rozlíšenie.
+
+To je praktický kompromis:
+- zníži sa veľkosť datasetu,
+- ale zostáva dostatok informácie o priebehu teploty.
+
+8.6 Chronologické rozdelenie dát
+Dáta sa nerozdeľovali náhodne, ale chronologicky.
+
+To znamená:
+- prvá časť dát išla na train,
+- nasledujúca časť na validation,
+- posledná časť na test.
+
+Toto je veľmi dôležité pri časových radoch, pretože budúcnosť nesmie ovplyvniť minulosť.
+
+Ak by sa dáta premiešali, vznikol by metodický problém nazývaný data leakage.
+
+8.7 Normalizácia
+Hodnoty vstupných príznakov a cieľovej premennej sa škálovali.
+
+Použitý bol StandardScaler.
+
+To znamená, že hodnoty sa transformovali tak, aby mali približne:
+- priemer 0,
+- štandardnú odchýlku 1.
+
+Výhoda:
+- neurónová sieť sa trénuje stabilnejšie,
+- číselné rozsahy premenných sa zjednotia,
+- optimalizácia je jednoduchšia.
+
+Veľmi dôležité:
+scaler sa fitoval iba na train množine. Potom sa rovnaká transformácia aplikovala aj na validation a test.
+
+8.8 Sliding window
+Toto je kľúčový krok pri forecasting-u.
+
+Model nedostáva celú nekonečnú históriu, ale iba krátky úsek posledných časových krokov.
+
+Príklad:
+ak je window size = 24, model dostane posledných 24 hodín a má predikovať ďalšiu teplotu.
+
+Ak je window size = 48, model dostane posledných 48 hodín.
+
+Tým sa z tabuľkových dát vytvára sekvenčný vstup vhodný pre CNN, LSTM aj Hybrid.
+
+8.9 Implementácia modelov
+Potom sa implementovali tri modely:
+
+A. CNN
+Používa 1D konvolúcie nad časovou osou.
+Dobre zachytáva lokálne vzory.
+
+B. LSTM
+Používa rekurentné spracovanie sekvencie.
+Dobre zachytáva dlhodobejšie časové závislosti.
+
+C. Hybrid CNN-LSTM
+Najprv extrahuje lokálne časové vzory cez CNN a potom ich sekvenčne modeluje cez LSTM.
+
+8.10 Tréning modelov
+Každý model sa trénoval na tréningovej množine a počas tréningu sa sledoval výkon na validačnej množine.
+
+Použitá bola spoločná tréningová logika:
+- optimizer Adam,
+- MSE loss,
+- scheduler ReduceLROnPlateau,
+- early stopping,
+- learning rate 1e-3,
+- batch size 64,
+- seed 42.
+
+To zabezpečilo, že rozdiely medzi modelmi neboli spôsobené iným tréningovým postupom.
+
+8.11 Ukladanie checkpointov
+Počas tréningu sa ukladal najlepší model podľa validation loss.
+
+To znamená:
+ak sa validačný výkon zlepšil, model sa uložil do .pt súboru.
+
+Takýto uložený stav modelu sa nazýva checkpoint.
+
+Výhoda:
+- po skončení tréningu sa nemusí použiť posledná epocha,
+- ale najlepší model, ktorý sa počas tréningu dosiahol.
+
+8.12 Ukladanie JSON výsledkov
+Okrem checkpointov sa ukladali aj JSON súbory s tréningovými informáciami:
+- train loss,
+- validation loss,
+- epoch times,
+- parameter count,
+- best validation loss,
+- konfigurácia modelu.
+
+Tieto JSON súbory slúžia na:
+- neskoršie porovnanie,
+- tvorbu grafov,
+- a analýzu tréningového priebehu.
+
+8.13 Evaluácia
+Po natrénovaní modelov sa spustila spoločná evaluácia.
+
+Evaluácia:
+- načíta uložené checkpointy,
+- pustí model na validation a test množinu,
+- prevedie výstupy späť do reálnych jednotiek,
+- vypočíta metriky RMSE a MAE,
+- vygeneruje grafy,
+- a vytvorí summary.
+
+8.14 Vizualizácie
+Generované boli tieto typy grafov:
+- loss curves,
+- predicted vs target,
+- error distribution,
+- last 100 time steps,
+- comparison plot,
+- ablation plot.
+
+Tieto grafy sú veľmi dôležité, pretože ukazujú nielen čísla, ale aj správanie modelu.
+
+9. LEGENDA POJMOV A DEFINÍCIE
+
+9.1 Forecasting
+Forecasting znamená predikciu budúcej hodnoty alebo budúceho vývoja časového radu na základe minulosti.
+
+9.2 Time series
+Časový rad je postupnosť hodnôt usporiadaných v čase.
+
+9.3 Multivariate time series
+Časový rad, kde má každý časový krok viacero príznakov.
+
+9.4 Feature
+Feature je vstupný príznak. V našom prípade napríklad tlak, vlhkosť alebo iná meteorologická premenná.
+
+9.5 Target variable
+Target variable je cieľová premenná, ktorú sa model snaží predikovať. U nás je to teplota T (degC).
+
+9.6 Sliding window
+Sliding window je technika, pri ktorej sa z časového radu vytvárajú krátke vstupné sekvencie pevnej dĺžky.
+Model dostane niekoľko posledných krokov a predikuje ďalší.
+
+9.7 Window size
+Počet časových krokov vo vstupnom okne.
+Napríklad:
+- 24 = posledných 24 hodín,
+- 48 = posledných 48 hodín.
+
+9.8 Chronological split
+Chronologické rozdelenie dát.
+Najskôr train, potom validation, potom test podľa času.
+
+9.9 Data leakage
+Data leakage znamená, že sa do tréningu alebo spracovania dostane informácia z budúcnosti, ktorá tam nemá byť.
+Pri časových radoch je to veľmi vážna metodická chyba.
+
+9.10 Scaling / Normalization
+Transformácia dát do vhodnejšieho číselného rozsahu, aby sa model lepšie učil.
+
+9.11 StandardScaler
+Metóda škálovania, pri ktorej sa dáta transformujú na približne nulový priemer a jednotkovú štandardnú odchýlku.
+
+9.12 Epoch
+Jedna epocha znamená jeden úplný prechod cez celú tréningovú množinu.
+
+9.13 Batch
+Menšia skupina vzoriek, ktoré sa naraz spracujú modelom počas tréningu.
+
+9.14 Loss function
+Funkcia, ktorá meria, ako veľmi sa predikcia modelu líši od správnej hodnoty.
+
+9.15 MSE
+Mean Squared Error.
+Priemerná kvadratická chyba.
+Silnejšie trestá väčšie chyby.
+
+9.16 RMSE
+Root Mean Squared Error.
+Odmocnená priemerná kvadratická chyba.
+Má rovnaké jednotky ako predikovaná veličina, preto je dobre interpretovateľná.
+
+9.17 MAE
+Mean Absolute Error.
+Priemerná absolútna chyba.
+Hovorí, o koľko stupňov sa model priemerne mýli.
+
+9.18 R²
+Koeficient determinácie.
+Vyjadruje, ako dobre model vysvetľuje variabilitu dát.
+Čím bližšie k 1, tým lepšie.
+
+9.19 Optimizer
+Algoritmus, ktorý upravuje váhy modelu tak, aby sa loss znižoval.
+V projekte bol použitý Adam.
+
+9.20 Learning rate
+Veľkosť kroku, akým optimizer upravuje parametre modelu.
+
+9.21 Scheduler
+Mechanizmus, ktorý počas tréningu upravuje learning rate.
+V projekte sa použil ReduceLROnPlateau.
+
+9.22 Early stopping
+Mechanizmus, ktorý zastaví tréning, keď sa model už nezlepšuje.
+Pomáha zabrániť zbytočne dlhému tréningu a pretrénovaniu.
+
+9.23 Checkpoint
+Uložený stav modelu počas tréningu.
+Zvyčajne ide o najlepší model podľa validation loss.
+
+9.24 Parameter count
+Počet trénovateľných parametrov modelu.
+Vyjadruje jeho veľkosť a zložitosť.
+
+9.25 Convergence
+Priebeh učenia modelu smerom k nižšej chybe.
+Ak model konverguje stabilne, loss sa vyvíja rozumne a bez extrémnych skokov.
+
+9.26 Stability of convergence
+To, ako pokojne a spoľahlivo sa model učí.
+Stabilná konvergencia znamená menej náhodných výkyvov.
+
+9.27 Ablation study
+Ablation study je experiment, pri ktorom sa cielene mení jedna konkrétna vlastnosť systému, aby sa zistilo, aký má vplyv na výsledok.
+
+V našom projekte bola ablation study realizovaná hlavne pri CNN modeloch porovnaním:
+- window size 24,
+- window size 48.
+
+Cieľom bolo zistiť, či dlhšie vstupné okno zlepší výsledky.
+
+Jednoducho povedané:
+ablation znamená, že neskúmame všetko naraz, ale meníme jednu konkrétnu vec a sledujeme jej vplyv.
+
+9.28 Error distribution
+Rozdelenie chýb modelu.
+Ukazuje, či sú chyby väčšinou malé, alebo sa často objavujú aj väčšie odchýlky.
+
+9.29 Predicted vs Target plot
+Graf, kde sa porovnávajú predikované a skutočné hodnoty.
+Ak body ležia blízko diagonály, model predikuje dobre.
+
+9.30 Trade-off
+Kompromis medzi dvoma vlastnosťami.
+V našom prípade napríklad medzi:
+- presnosťou,
+- a výpočtovou náročnosťou.
+
+10. ČO UKÁZALI VÝSLEDKY
+
+Výsledky ukázali tieto hlavné zistenia:
+
+- Najlepší celkový model bol LSTM_configB.
+- Veľmi dobrý kompromis poskytol Hybrid_configA.
+- Najlepší CNN model bol CNN_configB.
+- CNN modely sa zlepšili pri dlhšom okne 48.
+- LSTM a Hybrid boli stabilnejšie než CNN.
+- CNN bola výpočtovo ľahšia, ale menej presná.
+
+11. PREČO JE DÔLEŽITÁ INTERPRETÁCIA A NIE LEN ČÍSLA
+
+Samotné čísla nestačia.
+Je potrebné pozerať aj:
+- ako sa model učil,
+- ako vyzerali loss krivky,
+- či model robil extrémne chyby,
+- ako vyzerali predikcie v čase,
+- a aký bol kompromis medzi presnosťou a zložitosťou.
+
+Preto sa projekt nesústredil iba na RMSE a MAE, ale aj na grafy a kvalitatívnu analýzu.
+
+12. AKO TOMUTO PROJEKTU ROZUMIEŤ AKO NOVÝ ČITATEĽ
+
+Ak je niekto nový a číta tento projekt prvýkrát, mal by si ho predstaviť takto:
+
+- Máme historické meteorologické dáta.
+- Z minulosti chceme odhadovať budúcu teplotu.
+- Na to sme použili tri rôzne typy neurónových sietí.
+- Aby bolo porovnanie spravodlivé, všetky modely dostali rovnako pripravené dáta.
+- Modely sa natrénovali, uložili a potom objektívne porovnali.
+- Nakoniec sme zistili, ktorý model bol najpresnejší, ktorý najúspornejší a ktorý predstavuje najlepší kompromis.
+
+13. PRAKTICKÝ ZÁVER PRE NOVÉHO ČITATEĽA
+
+Ak by mal nový čitateľ pochopiť projekt jednou zjednodušenou vetou, tak:
+
+Projekt porovnáva tri rôzne neurónové prístupy k predikcii teploty z historických meteorologických dát a ukazuje, že pre túto úlohu boli LSTM a hybridné modely úspešnejšie než čistá CNN, hoci CNN bola výpočtovo lacnejšia.
+
+14. POZNÁMKA K POUŽITIU TOHTO DOKUMENTU
+
+Tento dokument je zámerne písaný detailne a vysvetľujúco. Je vhodný ako:
+- interný metodický sprievodca,
+- podklad pre finálny report,
+- základ pre Overleaf,
+- pomocný materiál pre prezentáciu,
+- aj ako vysvetľujúci dokument pre člena tímu, ktorý sa chce rýchlo zorientovať v projekte.

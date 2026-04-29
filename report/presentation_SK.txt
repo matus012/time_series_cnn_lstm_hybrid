@@ -1,0 +1,93 @@
+Slide 1 – Názov
+NN Time Series Comparison
+Porovnanie CNN, LSTM a CNN-LSTM Hybrid pre predikciu teploty na datasete Jena Climate
+
+Poznámka pre prezentujúceho:
+V tomto projekte porovnávame tri architektúry neurónových sietí pre predikciu multivariátnych časových radov. Našou úlohou bolo predikovať teplotu vzduchu pomocou datasetu Jena Climate.
+
+Slide 2 – Motivácia
+- Predikcia časových radov je dôležitá v meteorológii, energetike aj financiách.
+- Rôzne architektúry zachytávajú časové vzory rôznym spôsobom.
+- Chceli sme porovnať lokálne vzory, dlhodobé závislosti a ich kombináciu.
+
+Poznámka:
+CNN je vhodná na lokálne časové vzory, LSTM na sekvenčné závislosti a hybridný model sa snaží spojiť výhody oboch.
+
+Slide 3 – Dataset
+- Dataset: Jena Climate
+- Multivariátne meteorologické merania
+- Cieľová premenná: teplota vzduchu
+- Použité len numerické príznaky
+- Hodinové vzorkovanie po výbere každého 6. riadku
+
+Poznámka:
+Zo surového datasetu sme ponechali len numerické príznaky a pôvodné 10-minútové merania sme previedli na hodinové.
+
+Slide 4 – Predspracovanie
+- Parsovanie stĺpca Date Time
+- Chronologické train/validation/test rozdelenie
+- Scaling iba na train množine
+- Sliding-window prístup
+- Testované okná: 24 a 48
+
+Poznámka:
+Chronologické delenie bolo potrebné, aby nevznikol data leakage. Všetky modely používali rovnakú zdieľanú pipeline.
+
+Slide 5 – Porovnávané modely
+- 1D-CNN
+- LSTM
+- CNN-LSTM Hybrid
+
+Poznámka:
+CNN model používa časové konvolúcie, LSTM rekurentné modelovanie sekvencie a hybrid najprv extrahuje lokálne vzory pomocou CNN a následne modeluje sekvenčné závislosti cez LSTM.
+
+Slide 6 – Experimentálne nastavenie
+- Optimizer: Adam
+- Loss: MSE
+- Scheduler: ReduceLROnPlateau
+- Early stopping
+- Batch size: 64
+- Learning rate: 1e-3
+- Seed: 42
+
+Poznámka:
+Všetky modely boli trénované za rovnakých všeobecných podmienok, aby bolo porovnanie spravodlivé.
+
+Slide 7 – Finálne výsledky
+- LSTM_configB: RMSE 0.6570, MAE 0.4636
+- Hybrid_configA: RMSE 0.6636, MAE 0.4701
+- LSTM_configA: RMSE 0.6964, MAE 0.5018
+- Hybrid_configB: RMSE 0.7464, MAE 0.5546
+- CNN_configB: RMSE 0.8662, MAE 0.6607
+- CNN_configA: RMSE 0.9084, MAE 0.6911
+
+Poznámka:
+Najlepší celkový model bol LSTM_configB. Hybrid_configA bol veľmi blízko, pričom mal výrazne menej parametrov ako najsilnejší LSTM model.
+
+Slide 8 – Kompromis medzi výkonom a zložitosťou
+- Najlepšia presnosť: LSTM_configB
+- Najlepší kompromis: Hybrid_configA
+- Najnižšia zložitosť a najrýchlejší tréning: CNN_configA
+- Najlepšia CNN: CNN_configB
+- Okná 48 zlepšili výkon CNN
+
+Poznámka:
+To znamená, že finálna voľba závisí od toho, či preferujeme maximálnu presnosť alebo výpočtovú úspornosť.
+
+Slide 9 – Analýza chýb a grafy
+- LSTM a Hybrid mali užšiu distribúciu chýb
+- Predikcie boli blízko ideálnej diagonály
+- CNN mala menej stabilné validačné loss krivky
+- Všetky modely zachytili celkový trend posledných 100 krokov
+
+Poznámka:
+CNN fungovala použiteľne, ale LSTM a Hybrid boli stabilnejšie a presnejšie, hlavne pri rýchlejších zmenách teploty.
+
+Slide 10 – Záver
+- LSTM dosiahol najlepší celkový výsledok
+- Hybrid dosiahol veľmi dobrý kompromis medzi presnosťou a zložitosťou
+- CNN bola výpočtovo lacnejšia, ale menej presná
+- Voľba architektúry výrazne ovplyvňuje kvalitu predikcie
+
+Poznámka:
+Finálny záver je taký, že pri tejto úlohe sú LSTM a hybridné prístupy vhodnejšie než čistá CNN architektúra.

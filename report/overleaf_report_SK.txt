@@ -1,0 +1,450 @@
+NÁVRH PODROBNÉHO REPORTOVÉHO PODKLADU – SLOVENSKÁ VERZIA
+
+Názov projektu:
+Porovnanie CNN, LSTM a hybridného modelu CNN-LSTM pre predikciu časových radov na datasete Jena Climate
+
+1. ÚVOD
+
+Predikcia časových radov patrí medzi dôležité úlohy v oblasti strojového učenia a neurónových sietí. Vyskytuje sa vo veľkom množstve praktických aplikácií, napríklad v meteorológii, energetike, doprave, priemysle, ekonómii a financiách. V meteorológii je dôležité vedieť odhadovať budúci vývoj vybraných veličín, napríklad teploty, tlaku, vlhkosti alebo rýchlosti vetra. Takéto úlohy sú zaujímavé aj preto, že reálne časové rady obsahujú krátkodobé aj dlhodobé závislosti, sezónnosť, šum a rôzne prechodové javy.
+
+Pri modelovaní časových radov sa používajú rôzne typy neurónových sietí. Konvolučné neurónové siete dokážu veľmi dobre extrahovať lokálne vzory zo vstupnej sekvencie a zachytávať lokálne zmeny v čase. Rekurentné neurónové siete, predovšetkým LSTM, sú navrhnuté tak, aby si dokázali udržiavať informáciu o predchádzajúcich časových krokoch a modelovať dlhodobejšie časové závislosti. Hybridné architektúry sa snažia tieto dva prístupy spojiť a využiť výhody oboch – teda schopnosť CNN extrahovať lokálne charakteristiky a schopnosť LSTM modelovať sekvenčné vzťahy.
+
+Cieľom tohto projektu bolo systematicky porovnať tri architektúry neurónových sietí na spoločnej úlohe predikcie teploty z multivariátneho meteorologického časového radu. Konkrétne sme porovnávali:
+- 1D-CNN model,
+- LSTM model,
+- jednoduchý hybridný CNN-LSTM model.
+
+Porovnanie sme vykonali na datasete Jena Climate. Sústredili sme sa nielen na samotnú presnosť predikcie, ale aj na ďalšie prakticky dôležité aspekty, ako sú:
+- vplyv veľkosti vstupného okna,
+- počet parametrov modelu,
+- čas trénovania,
+- stabilita konvergencie počas učenia,
+- kvalitatívna analýza predikcií a chýb.
+
+Projekt bol riešený tímovo. Každý člen tímu mal pridelenú konkrétnu oblasť zodpovednosti, ale všetky modely používali spoločnú pipeline spracovania dát a spoločnú logiku tréningu a evaluácie, aby bolo porovnanie čo najviac férové a metodicky korektné.
+
+2. CIEĽ PROJEKTU
+
+Hlavným cieľom projektu bolo porovnať výkon troch rôznych architektúr neurónových sietí pri predikcii teploty z multivariátneho časového radu. Pri návrhu a realizácii projektu sme sa riadili zadáním témy, podľa ktorého bolo potrebné:
+
+- spracovať multivariátny časový rad do formátu sliding window,
+- zabezpečiť chronologické rozdelenie dát bez data leakage,
+- implementovať tri modely: CNN, LSTM a hybrid CNN-LSTM,
+- porovnať ich pomocou metrík RMSE a MAE,
+- sledovať vplyv veľkosti vstupného okna,
+- porovnať počet parametrov a čas trénovania,
+- analyzovať priebeh loss počas učenia,
+- vizualizovať predikcie a chyby.
+
+Presnejšie povedané, projekt sa nesústredil iba na odpoveď na otázku „ktorý model je najpresnejší“, ale aj na otázky:
+- ktorý model je najvýhodnejší z pohľadu kompromisu medzi presnosťou a zložitosťou,
+- ktorý model je výpočtovo najúspornejší,
+- ktorý model konverguje najstabilnejšie,
+- a ktorý model je najvhodnejší pre túto konkrétnu úlohu predikcie teploty.
+
+3. DATASET
+
+Na riešenie projektu sme použili dataset Jena Climate. Ide o meteorologický dataset obsahujúci časovo usporiadané merania viacerých atmosférických veličín. Dataset je vhodný pre úlohy predikcie časových radov, pretože obsahuje:
+- dlhú sekvenciu meraní,
+- viacero numerických vstupných príznakov,
+- reálny fyzikálny kontext,
+- cieľovú veličinu, ktorou je teplota.
+
+V našom projekte sme zvolili predikciu veličiny T (degC), teda teploty vzduchu v stupňoch Celzia.
+
+Dataset bol spracovaný ako multivariátny časový rad. To znamená, že modely nedostávali iba samotnú históriu teploty, ale aj ďalšie meteorologické príznaky, ktoré môžu pomôcť pri odhade budúcej hodnoty teploty. Tým sa problém stal realistickejším a zároveň náročnejším než pri jednoduchom univariátnom forecasting-u.
+
+4. PREDSPRACOVANIE DÁT
+
+Predspracovanie dát bolo jednou z najdôležitejších častí projektu, pretože pri časových radoch je veľmi jednoduché urobiť metodickú chybu, napríklad data leakage. Všetky modely preto používali rovnakú zdieľanú pipeline.
+
+Postup predspracovania bol nasledovný:
+
+4.1 Načítanie dát
+Najprv sa načítal pôvodný CSV súbor datasetu. Pri načítaní sa spracoval stĺpec Date Time, ktorý reprezentuje časovú značku jednotlivých meraní. Tento stĺpec bol použitý ako index časového radu.
+
+4.2 Výber numerických príznakov
+Zo surového datasetu boli ponechané iba numerické stĺpce. Tým sa zabezpečilo, že vstup do modelov pozostával výlučne z číselných meteorologických veličín.
+
+4.3 Subsampling
+Pôvodný dataset mal časové rozlíšenie 10 minút. Aby sa zmenšila výpočtová náročnosť a zároveň zachoval dostatočný časový kontext, ponechal sa každý 6. záznam. Tým sa dáta previedli z 10-minútového rozlíšenia na hodinové rozlíšenie.
+
+Po subsamplingu vznikol dataset s tvarom:
+- pôvodný tvar: 420551 riadkov a 14 príznakov,
+- po výbere každého 6. riadku: 70092 riadkov a 14 príznakov.
+
+4.4 Chronologické rozdelenie
+Keďže ide o časový rad, rozdelenie na tréningovú, validačnú a testovaciu množinu muselo byť chronologické. Dáta neboli náhodne premiešané. Tým sa zabránilo úniku informácie z budúcnosti do minulosti.
+
+Výsledné rozdelenie bolo:
+- train: 49064 vzoriek,
+- validation: 10514 vzoriek,
+- test: 10514 vzoriek.
+
+4.5 Normalizácia
+Na škálovanie vstupných hodnôt bol použitý StandardScaler. Veľmi dôležité je, že scaler bol fitnutý iba na tréningovej množine. Následne sa rovnaké transformačné parametre použili aj na validačnú a testovaciu množinu. Takýto prístup je správny a zabraňuje data leakage.
+
+Normalizovaná bola aj cieľová premenná, pričom sa ukladali jej štatistiky:
+- priemer cieľovej premennej približne 9.108,
+- smerodajná odchýlka približne 8.655.
+
+Tieto štatistiky sa následne použili pri spätnej transformácii predikcií do reálnych jednotiek stupňov Celzia.
+
+4.6 Sliding Window
+Na vytvorenie vstupov do modelov bola použitá technika sliding window. To znamená, že model pri každej predikcii dostal krátku históriu predchádzajúcich časových krokov a mal predikovať nasledujúcu hodnotu teploty.
+
+Použili sa dve veľkosti okna:
+- window size 24,
+- window size 48.
+
+Pri hodinovom rozlíšení to zodpovedá:
+- 24 hodín histórie,
+- 48 hodín histórie.
+
+Po vytvorení sliding windows vznikli tieto počty vzoriek:
+- pre okno 24: train 49040, validation 10490, test 10490,
+- pre okno 48: train 49016, validation 10466, test 10466.
+
+5. ARCHITEKTÚRY MODELOV
+
+5.1 CNN model
+
+CNN model bol navrhnutý ako 1D konvolučná neurónová sieť pracujúca nad časovou osou. Vstup mal tvar:
+(batch, window_size, 14)
+
+Keďže vrstva Conv1d očakáva vstup v tvare:
+(batch, channels, length),
+vo forward priechode sa vykonala permutácia osí.
+
+Architektúra CNN obsahovala:
+- dve 1D konvolučné vrstvy,
+- aktivačné funkcie,
+- pooling,
+- dropout,
+- finálnu lineárnu výstupnú vrstvu.
+
+Testovali sa dve konfigurácie:
+- CNN_configA:
+  - channels_1 = 32
+  - channels_2 = 64
+  - kernel sizes = 3 a 3
+  - dropout = 0.2
+- CNN_configB:
+  - channels_1 = 64
+  - channels_2 = 128
+  - kernel sizes = 5 a 3
+  - dropout = 0.3
+
+Parametre:
+- CNN_configA: 7649 parametrov,
+- CNN_configB: 29377 parametrov.
+
+CNN model bol tiež explicitne testovaný pre oba window sizes 24 aj 48, čím bolo možné analyzovať vplyv dĺžky vstupného okna.
+
+5.2 LSTM model
+
+LSTM model bol navrhnutý ako klasická rekurentná architektúra pre sekvenčné dáta. Vstupná sekvencia bola spracovaná LSTM vrstvami a finálna predikcia bola odvodená z posledného skrytého stavu.
+
+Testovali sa dve konfigurácie:
+- LSTM_configA:
+  - hidden size = 64
+  - menšia kapacita modelu
+- LSTM_configB:
+  - hidden size = 128
+  - väčšia kapacita modelu
+
+Parametre:
+- LSTM_configA: 53825 parametrov,
+- LSTM_configB: 205953 parametrov.
+
+LSTM model bol vo finálnych experimentoch použitý s oknom 24.
+
+5.3 Hybridný model CNN-LSTM
+
+Hybridný model kombinoval konvolučnú a rekurentnú časť. Najprv sa na vstupnej sekvencii vykonala 1D konvolúcia na extrakciu lokálnych vzorov a následne bola výsledná reprezentácia poslaná do LSTM vrstvy, ktorá modelovala sekvenčný kontext.
+
+Testovali sa dve konfigurácie:
+- Hybrid_configA:
+  - menej rekurentných vrstiev,
+- Hybrid_configB:
+  - viac rekurentných vrstiev.
+
+Parametre:
+- Hybrid_configA: 46113 parametrov,
+- Hybrid_configB: 54561 parametrov.
+
+Hybridný model bol vo finálnych experimentoch trénovaný s oknom 48.
+
+6. TRÉNING A IMPLEMENTAČNÉ NASTAVENIE
+
+Pre všetky modely bola použitá spoločná tréningová logika, aby bolo porovnanie metodicky férové.
+
+Použité nastavenia:
+- optimizer: Adam,
+- loss funkcia: MSELoss,
+- scheduler: ReduceLROnPlateau,
+- early stopping s patience 10,
+- learning rate 1e-3,
+- batch size 64,
+- seed 42.
+
+Počas trénovania sa sledovalo:
+- train loss,
+- validation loss,
+- čas jednej epochy,
+- aktuálny learning rate,
+- best validation loss.
+
+Pri zlepšení validation loss sa ukladal checkpoint modelu do súboru .pt. Zároveň sa ukladali tréningové štatistiky do JSON súborov.
+
+Takýto prístup bol vhodný, pretože:
+- umožnil porovnávať modely nielen podľa test výsledkov,
+- ale aj podľa stability učenia,
+- počtu parametrov,
+- a času trénovania.
+
+7. VÝSLEDKY CNN – PODROBNÁ ČASŤ
+
+Keďže CNN bola jednou zo samostatne analyzovaných častí projektu, boli pri nej explicitne testované obe veľkosti okna.
+
+7.1 CNN pri okne 24
+
+CNN_configA, window 24:
+- best validation loss: 22.777275
+- test MAE: 1.172568 °C
+- test RMSE: 1.528655 °C
+- R²: 0.961460
+
+CNN_configB, window 24:
+- best validation loss: 3.036929
+- test MAE: 0.785000 °C
+- test RMSE: 1.009769 °C
+- R²: 0.983183
+
+Z týchto výsledkov je zrejmé, že pri okne 24 bol výrazne lepší configB než configA.
+
+7.2 CNN pri okne 48
+
+CNN_configA, window 48:
+- best validation loss: 4.690764
+- test MAE: 0.691050 °C
+- test RMSE: 0.908385 °C
+- R²: 0.986413
+
+CNN_configB, window 48:
+- best validation loss: 1.794162
+- test MAE: 0.660662 °C
+- test RMSE: 0.866241 °C
+- R²: 0.987644
+
+Aj tu bol lepší configB. Zároveň je vidieť, že pri oboch CNN konfiguráciách prinieslo okno 48 lepšie výsledky než okno 24.
+
+7.3 Interpretácia CNN výsledkov
+CNN modely boli z testovacieho pohľadu relatívne úspešné. Nedosiahli však najlepšie výsledky zo všetkých modelov. Na druhej strane mali nižšiu zložitosť a kratší čas trénovania než silnejšie LSTM konfigurácie.
+
+Veľmi dôležitým zistením bolo, že CNN pri tomto datasete profitovala z dlhšieho vstupného okna. To naznačuje, že pre konvolučný model bolo výhodné mať k dispozícii širší časový kontext.
+
+Zároveň však CNN vykazovala menej stabilný validačný priebeh než LSTM a hybrid. Validation loss mal pri CNN výraznejšie výkyvy, čo môže znamenať vyššiu citlivosť modelu na konkrétnu validačnú časť alebo menšiu robustnosť konvergencie.
+
+8. FINÁLNE SPOLOČNÉ POROVNANIE MODELOV
+
+Po retrainingu všetkých finálnych modelov a spoločnej evaluácii vzniklo nasledujúce poradie podľa testovacích metrík.
+
+LSTM_configA:
+- test RMSE: 0.6964 °C
+- test MAE: 0.5018 °C
+- počet parametrov: 53825
+- celkový čas trénovania: 226.6 s
+
+LSTM_configB:
+- test RMSE: 0.6570 °C
+- test MAE: 0.4636 °C
+- počet parametrov: 205953
+- celkový čas trénovania: 599.3 s
+
+CNN_configA:
+- test RMSE: 0.9084 °C
+- test MAE: 0.6911 °C
+- počet parametrov: 7649
+- celkový čas trénovania: 87.4 s
+
+CNN_configB:
+- test RMSE: 0.8662 °C
+- test MAE: 0.6607 °C
+- počet parametrov: 29377
+- celkový čas trénovania: 215.4 s
+
+Hybrid_configA:
+- test RMSE: 0.6636 °C
+- test MAE: 0.4701 °C
+- počet parametrov: 46113
+- celkový čas trénovania: 523.0 s
+
+Hybrid_configB:
+- test RMSE: 0.7464 °C
+- test MAE: 0.5546 °C
+- počet parametrov: 54561
+- celkový čas trénovania: 216.3 s
+
+Poradie podľa RMSE:
+1. LSTM_configB
+2. Hybrid_configA
+3. LSTM_configA
+4. Hybrid_configB
+5. CNN_configB
+6. CNN_configA
+
+9. DISKUSIA VÝSLEDKOV
+
+9.1 Najpresnejší model
+Najlepšiu presnosť dosiahol model LSTM_configB. Mal najnižšie test RMSE aj test MAE. To znamená, že na tejto konkrétnej úlohe sa ukázalo, že silnejšia LSTM architektúra dokázala najlepšie využiť informáciu z multivariátnej sekvencie.
+
+9.2 Najlepší kompromis
+Veľmi zaujímavý bol Hybrid_configA. Hoci nebol úplne najlepší, dosiahol takmer rovnaký výkon ako najlepší LSTM model, pričom mal výrazne menej parametrov. Preto ho možno považovať za veľmi dobrý kompromis medzi presnosťou a zložitosťou.
+
+9.3 Najvýpočtovo lacnejší model
+Najmenší počet parametrov a najkratší tréning mal CNN_configA. Tento model bol síce najmenej presný zo všetkých finálnych modelov, ale jeho výpočtová cena bola najnižšia. To je dôležité pozorovanie, pretože v niektorých aplikáciách môže byť rýchlosť a jednoduchosť dôležitejšia než maximálna presnosť.
+
+9.4 Najlepší CNN model
+Najlepším čisto konvolučným modelom bol CNN_configB. Bol lepší ako CNN_configA pri oboch oknách a zároveň sa ukázalo, že dlhšie okno 48 bolo pre CNN výhodnejšie než okno 24.
+
+9.5 Stabilita konvergencie
+LSTM a hybridné modely vykazovali stabilnejší priebeh tréningu aj validácie. Na loss krivkách bolo vidieť, že ich validation loss bol podstatne pokojnejší a menej chaotický. CNN modely síce dosiahli použiteľné test výsledky, ale ich validačné loss krivky mali veľké skoky a výkyvy. To naznačuje, že CNN mala menej stabilnú konvergenciu.
+
+9.6 Vzťah medzi veľkosťou modelu a výkonom
+Z výsledkov je vidieť, že väčší model automaticky nemusí znamenať lepší výsledok. Napríklad Hybrid_configA bol lepší než Hybrid_configB, aj keď mal menej parametrov. Podobne pri LSTM bol síce väčší model úspešný, ale za cenu veľmi výrazného nárastu počtu parametrov a času trénovania.
+
+10. ANALÝZA GRAFOV
+
+10.1 Loss krivky
+Loss krivky potvrdili, že:
+- LSTM a hybridné modely mali plynulejší priebeh učenia,
+- CNN mala výrazne nestabilnejší validation loss.
+
+To je viditeľné najmä pri CNN_configA a CNN_configB, kde validation loss prudko osciluje a má vysoké skoky. Napriek tomu sa model na testovacej množine správa lepšie, než by sa podľa samotnej validation krivky mohlo zdať. To je zaujímavý jav a treba ho v reporte otvorene pomenovať.
+
+10.2 Error distribution
+Histogramy chýb ukazujú, že pri LSTM a hybridných modeloch bola väčšina absolútnych chýb sústredená blízko nuly. To je veľmi dobrý znak. CNN modely mali širšie rozdelenie chýb, čo znamená, že sa pri nich častejšie objavovali väčšie odchýlky.
+
+10.3 Predicted vs Target
+Body pri modeloch LSTM a Hybrid ležali veľmi blízko ideálnej diagonály. To znamená, že modely vedeli dobre zachytiť vzťah medzi skutočnou a predikovanou hodnotou. Pri CNN bol rozptyl väčší, aj keď stále dosť dobrý na to, aby bol model považovaný za použiteľný.
+
+10.4 Predikcie posledných 100 krokov
+Grafy posledných 100 krokov ukázali, že všetky modely zachytávajú celkový trend teploty. LSTM a hybridné modely sledovali priebeh presnejšie, najmä pri rýchlejších zmenách. CNN v niektorých úsekoch mierne oneskoruje alebo vyhladzuje predikciu viac, než je ideálne.
+
+11. ABLATION STUDY – VPLYV DĹŽKY OKNA
+
+Explicitná ablation study bola realizovaná najmä pri CNN modeli, kde sa porovnávali okná 24 a 48. Výsledky ukázali, že:
+- CNN_configA sa zlepšil pri prechode z 24 na 48,
+- CNN_configB sa tiež zlepšil pri prechode z 24 na 48.
+
+To naznačuje, že dlhšie okno poskytlo modelu viac užitočného časového kontextu. Pri tejto úlohe teda dlhšia história vstupov pomohla konvolučným modelom.
+
+Pri LSTM a hybride boli vo finálnej fáze použité zvolené okná podľa návrhu architektúr:
+- LSTM s oknom 24,
+- hybrid s oknom 48.
+
+Toto treba v reporte formulovať korektne a otvorene uviesť, aby bolo jasné, v akej forme bola analýza okna vykonaná.
+
+12. PRAKTICKÁ INTERPRETÁCIA
+
+Ak by sme model vyberali čisto podľa presnosti, zvolili by sme LSTM_configB.
+
+Ak by sme hľadali najlepší kompromis medzi presnosťou a zložitosťou, veľmi silným kandidátom by bol Hybrid_configA.
+
+Ak by sme potrebovali najjednoduchší a najrýchlejší model s ešte stále rozumnými výsledkami, vybrali by sme CNN_configA alebo CNN_configB podľa požadovanej presnosti.
+
+To ukazuje, že v praxi nemusí byť voľba modelu určená iba jednou metrikou. Veľmi záleží na tom, či preferujeme:
+- maximálnu presnosť,
+- nízku výpočtovú náročnosť,
+- menšiu veľkosť modelu,
+- alebo stabilné správanie pri trénovaní.
+
+13. OBMEDZENIA PROJEKTU
+
+Projekt má viacero obmedzení:
+- nebol testovaný veľký počet hyperparametrických kombinácií,
+- nie všetky architektúry boli finálne testované na oboch oknách rovnakým spôsobom,
+- trénovanie prebiehalo na CPU, čo obmedzilo počet experimentov,
+- analyzovala sa len jedna cieľová veličina, a to teplota,
+- experimenty boli zamerané na relatívne jednoduché jednorazové forecasting nastavenie.
+
+Tieto obmedzenia však nemenia fakt, že projekt splnil zadanie a poskytol metodicky zmysluplné porovnanie troch architektúr na spoločnej úlohe.
+
+14. MOŽNÉ ZLEPŠENIA A ĎALŠIA PRÁCA
+
+V budúcnosti by bolo možné projekt rozšíriť o:
+- podrobnejší hyperparameter tuning,
+- systematickú ablation study 24 vs 48 aj pre LSTM a hybrid,
+- testovanie ďalších veľkostí okna,
+- testovanie GRU alebo Transformer-based modelov,
+- multi-step forecasting namiesto one-step forecasting,
+- rozšírenú analýzu extrémnych chýb,
+- tréning na GPU,
+- robustnejšie porovnanie pri viacerých seedoch.
+
+Takéto rozšírenie by umožnilo ešte hlbšie pochopiť správanie modelov a získať ešte spoľahlivejšie závery.
+
+15. ZÁVER
+
+V projekte sa úspešne implementovali a porovnali tri rôzne architektúry neurónových sietí pre predikciu teploty z multivariátneho meteorologického časového radu na datasete Jena Climate.
+
+Najdôležitejšie závery sú:
+- najlepšiu presnosť dosiahol LSTM_configB,
+- veľmi silný kompromis medzi presnosťou a zložitosťou ponúkol Hybrid_configA,
+- najlepší konvolučný model bol CNN_configB,
+- CNN modely profitovali z dlhšieho vstupného okna 48,
+- LSTM a hybridné modely vykazovali stabilnejšiu konvergenciu než CNN,
+- architektúra modelu má významný vplyv na kvalitu predikcie.
+
+Projekt teda ukázal, že pre túto úlohu sú rekurentné a hybridné modely vhodnejšie než čistá CNN, hoci CNN ostáva zaujímavou voľbou z pohľadu výpočtovej ceny.
+
+16. PRÍNOS JEDNOTLIVÝCH ČLENOV TÍMU
+
+Person 1:
+- pripravil pipeline spracovania dát,
+- riešil normalizáciu a sliding window,
+- vytvoril zdieľané tréningové utility,
+- implementoval LSTM model.
+
+Person 2:
+- implementoval CNN model,
+- pripravil experimenty CNN pre okná 24 a 48,
+- analyzoval výkon CNN,
+- pripravil textové podklady a interpretáciu CNN výsledkov.
+
+Person 3:
+- implementoval hybridný CNN-LSTM model,
+- ladil jeho konfigurácie,
+- analyzoval jeho výkon a porovnanie s ostatnými modelmi.
+
+Person 4:
+- integroval výsledky,
+- pripravoval evaluačné výstupy a grafy,
+- vytváral finálne reportové a prezentačné materiály,
+- spájal čiastkové podklady do jednej spoločnej formy.
+
+17. STRUČNÝ MATERIÁL PRE PREZENTÁCIU
+
+Najlepšia presnosť:
+- LSTM_configB
+
+Najlepší kompromis:
+- Hybrid_configA
+
+Najlepší CNN:
+- CNN_configB
+
+Najlacnejší model:
+- CNN_configA
+
+Hlavné zistenia:
+- LSTM je najpresnejší,
+- hybrid je veľmi silný kompromis,
+- CNN je ľahká, ale menej presná,
+- dlhšie okno 48 pomohlo CNN,
+- LSTM a hybrid sú stabilnejšie pri trénovaní.
+
+18. POZNÁMKA K FINÁLNEJ VERZII REPORTU
+
+Tento text je zámerne dlhší a podrobnejší než finálna verzia reportu. Slúži ako zdrojový materiál, z ktorého je možné vyberať, skracovať a upravovať jednotlivé časti podľa požadovaného rozsahu finálneho dokumentu v Overleafe.

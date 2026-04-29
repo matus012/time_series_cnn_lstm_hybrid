@@ -1,8 +1,6 @@
 """Training script for LSTM model — both configs."""
 
-import json
 import sys
-from pathlib import Path
 
 from src.dataset import prepare_data
 from src.models.lstm import LSTMModel
@@ -29,8 +27,8 @@ def run_config(
     set_seed(42)
     device = get_device()
 
-    all_loaders, target_col = prepare_data(batch_size=batch_size)
-    train_loader, val_loader, test_loader = all_loaders[window_size]
+    all_loaders, _ = prepare_data(batch_size=batch_size)
+    train_loader, val_loader, _ = all_loaders[window_size]
 
     model = LSTMModel(
         input_size=14,

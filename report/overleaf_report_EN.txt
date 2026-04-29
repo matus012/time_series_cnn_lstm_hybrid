@@ -1,0 +1,449 @@
+DETAILED REPORT SOURCE MATERIAL – ENGLISH VERSION
+
+Project Title:
+Comparison of CNN, LSTM, and CNN-LSTM Hybrid Models for Time-Series Forecasting on the Jena Climate Dataset
+
+1. INTRODUCTION
+
+Time-series forecasting is one of the important tasks in machine learning and neural networks. It appears in many practical domains such as meteorology, energy systems, transportation, industry, economics, and finance. In meteorology, it is important to estimate the future evolution of selected variables such as temperature, pressure, humidity, or wind-related measurements. These tasks are also interesting because real-world time series usually contain both short-term and long-term dependencies, seasonality, noise, and various transient patterns.
+
+Several neural network architectures can be used for time-series forecasting. Convolutional neural networks are effective at extracting local patterns from the input sequence and capturing short-term temporal changes. Recurrent neural networks, especially LSTM, are designed to maintain information about previous time steps and model longer temporal dependencies. Hybrid architectures try to combine these two ideas and benefit from both approaches: the ability of CNN to extract local features and the ability of LSTM to model sequential structure over time.
+
+The goal of this project was to systematically compare three neural network architectures on a shared task of temperature forecasting from a multivariate meteorological time series. Specifically, we compared:
+- a 1D-CNN model,
+- an LSTM model,
+- and a simple hybrid CNN-LSTM model.
+
+The comparison was carried out on the Jena Climate dataset. We focused not only on predictive accuracy, but also on several other practically important aspects, such as:
+- the effect of input window size,
+- the number of trainable parameters,
+- training time,
+- convergence stability during learning,
+- and qualitative analysis of predictions and errors.
+
+The project was solved as a team assignment. Each team member was responsible for a specific part of the work, but all models used a shared data processing pipeline and shared training/evaluation logic in order to keep the comparison fair and methodologically consistent.
+
+2. PROJECT OBJECTIVE
+
+The main objective of the project was to compare the performance of three different neural network architectures for temperature prediction from a multivariate time series. According to the assigned topic, the project had to include:
+
+- preprocessing a multivariate time series into a sliding-window format,
+- ensuring chronological train/validation/test split without data leakage,
+- implementing three models: CNN, LSTM, and hybrid CNN-LSTM,
+- comparing them using RMSE and MAE,
+- analyzing the effect of input window size,
+- comparing parameter count and training time,
+- studying the development of loss during training,
+- and visualizing predictions and errors.
+
+More precisely, the project was not only focused on answering the question “which model is the most accurate?”, but also on questions such as:
+- which model offers the best trade-off between predictive performance and complexity,
+- which model is the most computationally efficient,
+- which model converges most stably during training,
+- and which model is the most suitable for this specific temperature forecasting task.
+
+3. DATASET
+
+We used the Jena Climate dataset. This is a meteorological dataset containing time-ordered measurements of multiple atmospheric variables. It is suitable for time-series forecasting because it contains:
+- a long sequence of measurements,
+- multiple numerical input features,
+- a real physical context,
+- and a clearly defined target variable.
+
+In our project, the target variable was T (degC), that is, air temperature in degrees Celsius.
+
+The dataset was processed as a multivariate time series. This means that the models did not receive only the history of temperature itself, but also other meteorological features that could help predict future temperature values. This made the task more realistic and more challenging than a simple univariate forecasting problem.
+
+4. DATA PREPROCESSING
+
+Data preprocessing was one of the most important parts of the project, because in time-series forecasting it is very easy to make methodological mistakes, especially data leakage. For that reason, all models used the same shared preprocessing pipeline.
+
+The preprocessing steps were as follows:
+
+4.1 Data loading
+First, the raw CSV file was loaded. During loading, the Date Time column was parsed and used as the temporal index of the time series.
+
+4.2 Numerical feature selection
+Only numerical columns were retained from the raw dataset. This ensured that the model inputs consisted only of numerical meteorological variables.
+
+4.3 Subsampling
+The original dataset had a temporal resolution of 10 minutes. To reduce computational cost while still preserving sufficient temporal context, every 6th row was retained. This converted the dataset from 10-minute sampling into hourly sampling.
+
+After subsampling, the dataset shape changed as follows:
+- original shape: 420551 rows and 14 features,
+- after keeping every 6th row: 70092 rows and 14 features.
+
+4.4 Chronological split
+Because this is a time-series problem, the train/validation/test split had to be chronological. The data were not randomly shuffled. This prevented future information from leaking into earlier parts of the sequence.
+
+The final split sizes were:
+- train: 49064 samples,
+- validation: 10514 samples,
+- test: 10514 samples.
+
+4.5 Normalization
+StandardScaler was used for feature scaling. A very important methodological detail is that the scaler was fitted only on the training split. The same scaling parameters were then applied to the validation and test sets. This is the correct approach and prevents data leakage.
+
+The target variable was also normalized, and its statistics were stored:
+- target mean approximately 9.108,
+- target standard deviation approximately 8.655.
+
+These statistics were later used to transform model predictions back into real temperature units in degrees Celsius.
+
+4.6 Sliding window
+To create model inputs, we used the sliding-window technique. This means that for each prediction, the model receives a short sequence of previous time steps and must predict the next temperature value.
+
+Two input window sizes were used:
+- window size 24,
+- window size 48.
+
+With hourly sampling, this corresponds to:
+- 24 hours of history,
+- 48 hours of history.
+
+After generating sliding windows, the final number of samples became:
+- for window 24: train 49040, validation 10490, test 10490,
+- for window 48: train 49016, validation 10466, test 10466.
+
+5. MODEL ARCHITECTURES
+
+5.1 CNN model
+
+The CNN model was designed as a 1D convolutional neural network operating over the temporal dimension. The input shape was:
+(batch, window_size, 14)
+
+Since Conv1d expects:
+(batch, channels, length),
+a permutation of dimensions was performed inside the forward pass.
+
+The CNN architecture included:
+- two 1D convolutional layers,
+- activation functions,
+- pooling,
+- dropout,
+- and a final fully connected output layer.
+
+Two configurations were tested:
+- CNN_configA:
+  - channels_1 = 32
+  - channels_2 = 64
+  - kernel sizes = 3 and 3
+  - dropout = 0.2
+- CNN_configB:
+  - channels_1 = 64
+  - channels_2 = 128
+  - kernel sizes = 5 and 3
+  - dropout = 0.3
+
+Parameter counts:
+- CNN_configA: 7649 parameters,
+- CNN_configB: 29377 parameters.
+
+The CNN model was explicitly tested for both window sizes 24 and 48, which allowed a direct analysis of the effect of temporal context length.
+
+5.2 LSTM model
+
+The LSTM model was designed as a recurrent architecture for sequential data. The input sequence was processed through LSTM layers, and the final prediction was generated from the last hidden state.
+
+Two configurations were tested:
+- LSTM_configA:
+  - hidden size = 64
+  - smaller model capacity
+- LSTM_configB:
+  - hidden size = 128
+  - larger model capacity
+
+Parameter counts:
+- LSTM_configA: 53825 parameters,
+- LSTM_configB: 205953 parameters.
+
+In the final experiments, the LSTM model was used with window size 24.
+
+5.3 Hybrid CNN-LSTM model
+
+The hybrid model combined convolutional and recurrent parts. First, temporal convolution was used to extract local patterns from the sequence, and then the resulting representation was passed into an LSTM layer to model the sequential context.
+
+Two configurations were tested:
+- Hybrid_configA:
+  - fewer recurrent layers,
+- Hybrid_configB:
+  - more recurrent layers.
+
+Parameter counts:
+- Hybrid_configA: 46113 parameters,
+- Hybrid_configB: 54561 parameters.
+
+The hybrid model was trained in the final experiments with window size 48.
+
+6. TRAINING AND IMPLEMENTATION SETUP
+
+All models used the same shared training logic to keep the comparison methodologically fair.
+
+Training setup:
+- optimizer: Adam,
+- loss function: MSELoss,
+- scheduler: ReduceLROnPlateau,
+- early stopping with patience 10,
+- learning rate 1e-3,
+- batch size 64,
+- random seed 42.
+
+During training, the following values were tracked:
+- train loss,
+- validation loss,
+- epoch time,
+- current learning rate,
+- best validation loss.
+
+Whenever validation loss improved, the best checkpoint was saved into a .pt file. At the same time, training statistics were stored into JSON files.
+
+This approach was useful because it allowed us to compare models not only by test performance, but also by:
+- convergence behavior,
+- parameter count,
+- and training cost.
+
+7. CNN RESULTS – DETAILED PART
+
+Since CNN was one of the specifically analyzed components of the project, both input window sizes were explicitly tested.
+
+7.1 CNN with window 24
+
+CNN_configA, window 24:
+- best validation loss: 22.777275
+- test MAE: 1.172568 °C
+- test RMSE: 1.528655 °C
+- R²: 0.961460
+
+CNN_configB, window 24:
+- best validation loss: 3.036929
+- test MAE: 0.785000 °C
+- test RMSE: 1.009769 °C
+- R²: 0.983183
+
+These results clearly show that for window size 24, configB was significantly better than configA.
+
+7.2 CNN with window 48
+
+CNN_configA, window 48:
+- best validation loss: 4.690764
+- test MAE: 0.691050 °C
+- test RMSE: 0.908385 °C
+- R²: 0.986413
+
+CNN_configB, window 48:
+- best validation loss: 1.794162
+- test MAE: 0.660662 °C
+- test RMSE: 0.866241 °C
+- R²: 0.987644
+
+Again, configB outperformed configA. In addition, both CNN configurations improved when moving from window 24 to window 48.
+
+7.3 Interpretation of CNN results
+The CNN models performed reasonably well from the test-set perspective. However, they did not achieve the best results overall. On the other hand, they had lower complexity and shorter training time than the stronger LSTM configurations.
+
+An important finding was that CNN benefited from the longer input window. This suggests that for a convolutional architecture, a broader temporal context was useful for this forecasting task.
+
+At the same time, CNN showed less stable validation behavior than LSTM and hybrid models. The validation loss curves contained strong oscillations and large jumps, which may indicate greater sensitivity to the selected validation segment or lower robustness of convergence.
+
+8. FINAL OVERALL MODEL COMPARISON
+
+After retraining all final models and running shared evaluation, the following final ranking was obtained.
+
+LSTM_configA:
+- test RMSE: 0.6964 °C
+- test MAE: 0.5018 °C
+- parameter count: 53825
+- total training time: 226.6 s
+
+LSTM_configB:
+- test RMSE: 0.6570 °C
+- test MAE: 0.4636 °C
+- parameter count: 205953
+- total training time: 599.3 s
+
+CNN_configA:
+- test RMSE: 0.9084 °C
+- test MAE: 0.6911 °C
+- parameter count: 7649
+- total training time: 87.4 s
+
+CNN_configB:
+- test RMSE: 0.8662 °C
+- test MAE: 0.6607 °C
+- parameter count: 29377
+- total training time: 215.4 s
+
+Hybrid_configA:
+- test RMSE: 0.6636 °C
+- test MAE: 0.4701 °C
+- parameter count: 46113
+- total training time: 523.0 s
+
+Hybrid_configB:
+- test RMSE: 0.7464 °C
+- test MAE: 0.5546 °C
+- parameter count: 54561
+- total training time: 216.3 s
+
+Ranking by RMSE:
+1. LSTM_configB
+2. Hybrid_configA
+3. LSTM_configA
+4. Hybrid_configB
+5. CNN_configB
+6. CNN_configA
+
+9. DISCUSSION OF RESULTS
+
+9.1 Most accurate model
+The most accurate model was LSTM_configB. It achieved the lowest test RMSE and the lowest test MAE. This means that for this task, the stronger LSTM architecture was able to make the best use of the information contained in the multivariate sequence.
+
+9.2 Best trade-off
+A particularly interesting result was Hybrid_configA. Although it was not the absolute best, it achieved nearly the same predictive performance as the strongest LSTM model while using far fewer parameters. Because of that, it can be considered one of the best trade-offs between performance and complexity.
+
+9.3 Most computationally efficient model
+CNN_configA had the smallest number of parameters and the shortest training time. Although it was the least accurate among the final models, its computational cost was the lowest. This is an important practical observation, because in some applications low training and inference cost may be more important than maximum accuracy.
+
+9.4 Best CNN model
+The best purely convolutional model was CNN_configB. It outperformed CNN_configA for both input window sizes, and it also showed that a longer window of 48 was better than 24 for CNN.
+
+9.5 Convergence stability
+LSTM and hybrid models showed more stable training and validation behavior. The loss curves indicate that their validation loss evolved more smoothly and consistently. CNN models, on the other hand, showed much stronger oscillations in validation loss. This suggests that CNN had less stable convergence in this forecasting task.
+
+9.6 Relationship between model size and performance
+The results also show that a larger model does not automatically guarantee better performance. For example, Hybrid_configA outperformed Hybrid_configB even though it had fewer parameters. Similarly, larger capacity can improve accuracy in some cases, but often at the cost of much longer training time and higher complexity.
+
+10. GRAPH ANALYSIS
+
+10.1 Loss curves
+The loss curves confirmed that:
+- LSTM and hybrid models had smoother learning dynamics,
+- CNN had a significantly more unstable validation loss.
+
+This is especially visible for CNN_configA and CNN_configB, where the validation loss fluctuates heavily and has sharp jumps. Interestingly, the CNN models still achieved acceptable test performance despite unstable validation curves. This is a relevant observation and should be discussed explicitly in the report.
+
+10.2 Error distribution
+The error histograms show that for LSTM and hybrid models, most absolute errors are concentrated close to zero. This is a very good sign. CNN models had wider error distributions, which means that larger deviations occurred more frequently.
+
+10.3 Predicted vs Target
+For LSTM and hybrid models, the points were located very close to the ideal diagonal line. This means that the models captured the relationship between the true and predicted temperature values very well. For CNN, the spread was larger, although still good enough for the model to be considered useful.
+
+10.4 Last 100-step prediction plots
+The plots of the last 100 time steps show that all models captured the overall temperature trend. LSTM and hybrid models followed the curve more accurately, especially during faster changes. CNN tended to lag slightly in some parts or smooth the signal more strongly than ideal.
+
+11. ABLATION STUDY – EFFECT OF WINDOW SIZE
+
+The explicit ablation study was primarily performed for the CNN model, where window sizes 24 and 48 were directly compared. The results showed that:
+- CNN_configA improved when moving from 24 to 48,
+- CNN_configB also improved when moving from 24 to 48.
+
+This indicates that a longer temporal context was beneficial for convolutional forecasting in this task.
+
+For LSTM and hybrid, the final runs used selected window sizes according to the architectural design:
+- LSTM with window 24,
+- hybrid with window 48.
+
+This should be explained clearly in the final report so that the scope of the window-size comparison is stated correctly and transparently.
+
+12. PRACTICAL INTERPRETATION
+
+If we had to choose the model purely according to predictive accuracy, we would choose LSTM_configB.
+
+If we wanted the best balance between accuracy and model complexity, Hybrid_configA would be a very strong choice.
+
+If we needed the simplest and fastest model while still keeping reasonably good results, CNN_configA or CNN_configB could be selected depending on the acceptable accuracy threshold.
+
+This shows that in practice, model selection is not determined by a single metric. It strongly depends on whether we prioritize:
+- maximum predictive performance,
+- low computational cost,
+- smaller model size,
+- or stable convergence behavior.
+
+13. PROJECT LIMITATIONS
+
+The project has several limitations:
+- only a limited number of hyperparameter combinations was tested,
+- not all architectures were finally evaluated under exactly the same window-size protocol,
+- training was performed on CPU, which limited the number of experiments,
+- only one target variable, temperature, was forecasted,
+- and the experiments focused on a relatively simple one-step forecasting setup.
+
+However, these limitations do not change the fact that the project fulfilled its assignment and produced a meaningful methodological comparison of three neural architectures on a shared task.
+
+14. POSSIBLE IMPROVEMENTS AND FUTURE WORK
+
+In the future, the project could be extended by:
+- more detailed hyperparameter tuning,
+- a systematic 24 vs 48 window-size study also for LSTM and hybrid,
+- testing additional window lengths,
+- testing GRU or Transformer-based architectures,
+- moving from one-step forecasting to multi-step forecasting,
+- deeper analysis of extreme prediction errors,
+- GPU-based training,
+- and more robust evaluation across multiple random seeds.
+
+Such extensions would allow even deeper understanding of the behavior of the compared models and lead to more reliable conclusions.
+
+15. CONCLUSION
+
+The project successfully implemented and compared three different neural network architectures for temperature forecasting from a multivariate meteorological time series based on the Jena Climate dataset.
+
+The most important conclusions are:
+- the best predictive accuracy was achieved by LSTM_configB,
+- Hybrid_configA provided a very strong trade-off between accuracy and complexity,
+- the best convolutional model was CNN_configB,
+- CNN models benefited from the longer input window of 48,
+- LSTM and hybrid models showed more stable convergence than CNN,
+- and model architecture had a strong impact on forecasting quality.
+
+Overall, the project demonstrated that recurrent and hybrid architectures are better suited than a pure CNN for this specific forecasting task, although CNN remains an interesting option from the perspective of computational efficiency.
+
+16. TEAM CONTRIBUTIONS
+
+Person 1:
+- prepared the data processing pipeline,
+- handled normalization and sliding window generation,
+- implemented the shared training utilities,
+- implemented the LSTM model.
+
+Person 2:
+- implemented the CNN model,
+- carried out CNN experiments for windows 24 and 48,
+- analyzed CNN performance,
+- prepared textual material and interpretation of CNN results.
+
+Person 3:
+- implemented the hybrid CNN-LSTM model,
+- tuned hybrid configurations,
+- analyzed hybrid performance and its comparison with the other approaches.
+
+Person 4:
+- integrated results,
+- prepared evaluation outputs and plots,
+- created the final report and presentation materials,
+- combined partial team outputs into one final document.
+
+17. SHORT MATERIAL FOR PRESENTATION
+
+Best accuracy:
+- LSTM_configB
+
+Best trade-off:
+- Hybrid_configA
+
+Best CNN:
+- CNN_configB
+
+Cheapest model:
+- CNN_configA
+
+Main findings:
+- LSTM is the most accurate,
+- hybrid provides a very strong trade-off,
+- CNN is lighter but less accurate,
+- longer window 48 improved CNN,
+- LSTM and hybrid are more stable during training.
+
+18. NOTE ABOUT FINAL REPORT VERSION
+
+This text is intentionally longer and more detailed than the final report should be. It is meant to serve as source material from which shorter and more polished sections can later be selected and adapted for the final Overleaf version.

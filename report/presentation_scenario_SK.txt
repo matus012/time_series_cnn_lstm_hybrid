@@ -1,0 +1,476 @@
+VEĽMI PODROBNÝ SCENÁR PRE PREZENTÁCIU – SLOVENSKÁ VERZIA
+
+Téma:
+Porovnanie CNN, LSTM a hybridného modelu CNN-LSTM pre predikciu časových radov na datasete Jena Climate
+
+POZNÁMKA NA ZAČIATOK:
+Tento scenár nie je myslený tak, že sa má celý čítať doslova. Je to zdrojový materiál, z ktorého si každý člen tímu môže povyberať vhodné časti podľa dĺžky prezentácie, vlastného štýlu rozprávania a času, ktorý bude mať k dispozícii. Cieľom je, aby mal každý člen dostatok informácií o svojej časti a zároveň aby celá prezentácia pôsobila logicky, plynulo a odborne.
+
+============================================================
+CELKOVÁ ODPORÚČANÁ ŠTRUKTÚRA PREZENTÁCIE
+============================================================
+
+Odporúčané rozdelenie:
+- Person 1:
+  úvod, cieľ projektu, dataset, preprocessing, pipeline, sliding window, train/validation/test split, základ metodiky
+- Person 2:
+  CNN model, jeho architektúra, konfigurácie, experimenty s oknom 24 a 48, interpretácia CNN výsledkov
+- Person 3:
+  hybridný model CNN-LSTM, dôvod jeho návrhu, konfigurácie, porovnanie hybridu s ostatnými modelmi
+- Person 4:
+  evaluačná metodika, metriky, grafy, spoločné finálne porovnanie všetkých modelov, diskusia, záver, limity a ďalšia práca
+
+Každý člen by mal vedieť nielen svoju časť, ale aspoň stručne aj:
+- čo robili ostatní,
+- aký bol cieľ projektu,
+- ktorý model vyšiel najlepšie,
+- a čo sú hlavné závery.
+
+============================================================
+ÚVODNÉ POZNÁMKY PRE CELÝ TÍM
+============================================================
+
+Pred prezentáciou je dobré držať sa týchto pravidiel:
+1. Nerozprávať príliš rýchlo.
+2. Nepoužívať priveľa skratiek bez vysvetlenia.
+3. Pri prvom použití odborného pojmu krátko vysvetliť, čo znamená.
+4. Nečítať slajd doslova, ale skôr ho komentovať.
+5. Pri prechode medzi členmi použiť krátku prepojovaciu vetu, aby prezentácia nepôsobila roztrieštene.
+
+Príklady prechodových viet:
+- „Teraz by som plynulo prešiel k dátam a ich spracovaniu.“
+- „Po vysvetlení datasetu a pipeline teraz ukážeme prvý z porovnávaných modelov.“
+- „Po CNN modeli sa presunieme k hybridnému riešeniu, ktoré kombinuje dve predchádzajúce myšlienky.“
+- „Na záver ukážeme finálne porovnanie všetkých modelov a hlavné zistenia projektu.“
+
+============================================================
+PERSON 1 – ÚVOD, DATASET, PREDSPRACOVANIE, PIPELINE, LSTM
+============================================================
+
+------------------------------------------------------------
+ČASŤ 1 – OTVORENIE PREZENTÁCIE
+------------------------------------------------------------
+
+Možný úvod:
+„Dobrý deň, dnes by sme vám chceli predstaviť náš tímový projekt z oblasti neurónových sietí, ktorého témou bolo porovnanie troch architektúr pre predikciu časových radov. Konkrétne sme porovnávali model CNN, model LSTM a hybridný model CNN-LSTM na datasete Jena Climate.“
+
+Rozšírená verzia:
+„Naším cieľom bolo zistiť, ako sa budú jednotlivé typy neurónových sietí správať pri úlohe predikcie teploty z multivariátneho meteorologického časového radu. Nezamerali sme sa iba na samotnú presnosť, ale aj na výpočtovú náročnosť, počet parametrov, stabilitu trénovania a kvalitatívnu analýzu chýb.“
+
+Ešte detailnejšia verzia:
+„Tento projekt bol zaujímavý najmä preto, že každá z použitých architektúr má trochu inú filozofiu spracovania sekvenčných dát. CNN sa zameriava skôr na lokálne vzory v časovej osi, LSTM je navrhnutá na modelovanie dlhodobejších sekvenčných závislostí a hybridný model sa snaží tieto dve výhody skombinovať. Preto bolo zmysluplné otestovať ich na rovnakom datasete a rovnakou metodikou.“
+
+------------------------------------------------------------
+ČASŤ 2 – PREČO SME SI VYBRALI TÚTO TÉMU
+------------------------------------------------------------
+
+Možný text:
+„Tému sme si vybrali preto, lebo predikcia časových radov je veľmi dôležitá v praxi, napríklad v meteorológii, energetike, priemysle alebo financiách. Zároveň ide o dobrú úlohu na porovnanie rôznych architektúr neurónových sietí, pretože časové dáta obsahujú krátkodobé aj dlhodobé závislosti.“
+
+Ďalšie rozšírenie:
+„Pri časových radoch často nestačí pozerať sa len na jednu poslednú hodnotu. Model potrebuje rozumieť aj trendu, dynamike a súvislostiam medzi viacerými premennými v čase. Preto bolo vhodné porovnať modely, ktoré sú na sekvenčné dáta navrhnuté rôznymi spôsobmi.“
+
+------------------------------------------------------------
+ČASŤ 3 – DATASET
+------------------------------------------------------------
+
+Možný základ:
+„Použili sme dataset Jena Climate. Ide o meteorologický dataset s časovo usporiadanými meraniami viacerých atmosférických veličín. Naším cieľom bolo predikovať cieľovú premennú T, teda teplotu vzduchu v stupňoch Celzia.“
+
+Rozšírenie:
+„Dataset obsahuje multivariátne merania, čiže v každom časovom kroku máme viacero príznakov naraz. To znamená, že model nepracuje iba s históriou teploty, ale aj s ďalšími meteorologickými veličinami, ktoré môžu s teplotou súvisieť.“
+
+Ešte detailnejšie:
+„Výhodou tohto datasetu je, že ide o reálne fyzikálne dáta s prirodzenou časovou štruktúrou. To z neho robí vhodný benchmark pre úlohy time-series forecasting-u. Zároveň je dataset dostatočne veľký na trénovanie neurónových sietí a umožňuje porovnávať viacero prístupov pri rovnakých dátach.“
+
+------------------------------------------------------------
+ČASŤ 4 – PREPROCESSING A PIPELINE
+------------------------------------------------------------
+
+Možný text:
+„Veľmi dôležitou časťou projektu bolo predspracovanie dát. Všetky modely používali rovnakú pipeline, aby bolo porovnanie férové. Najprv sme načítali surový CSV súbor, spracovali časový stĺpec a ponechali iba numerické príznaky.“
+
+Pokračovanie:
+„Následne sme vykonali subsampling, čiže sme ponechali každý šiesty záznam. Tým sme previedli pôvodné 10-minútové rozlíšenie na hodinové rozlíšenie. Tento krok znížil výpočtovú náročnosť a zároveň zachoval dostatok časovej informácie.“
+
+Ešte detailnejšia verzia:
+„Po subsamplingu mal dataset približne 70-tisíc riadkov a 14 numerických príznakov. Následne sme dáta rozdelili chronologicky na tréningovú, validačnú a testovaciu množinu. To znamená, že sme ich nepremiešavali náhodne, pretože pri časových radoch by to mohlo spôsobiť data leakage.“
+
+------------------------------------------------------------
+ČASŤ 5 – ČO JE DATA LEAKAGE
+------------------------------------------------------------
+
+Toto je dobré povedať jednoducho:
+„Data leakage je situácia, keď sa do tréningu dostane informácia z budúcnosti, ktorá by tam nemala byť. Pri časových radoch je to kritický problém, pretože model by sa tak mohol naučiť niečo, čo by v reálnom nasadení k dispozícii nemal.“
+
+Jednoduchšia verzia:
+„Inak povedané, ak by sme dáta náhodne premiešali, model by sa mohol nepriamo učiť z budúcich hodnôt. Preto sme použili chronologické delenie.“
+
+------------------------------------------------------------
+ČASŤ 6 – NORMALIZÁCIA A SLIDING WINDOW
+------------------------------------------------------------
+
+Možný text:
+„Po rozdelení dát sme aplikovali normalizáciu. Dôležité je, že scaler bol fitnutý iba na tréningovej množine a rovnaká transformácia sa potom použila na validation a test. Tým sa opäť zabránilo data leakage.“
+
+Potom:
+„Následne sme dáta previedli do formátu sliding window. To znamená, že model dostáva vždy určitý počet predchádzajúcich časových krokov a na ich základe predikuje ďalšiu hodnotu teploty.“
+
+Rozšírenie:
+„V našom projekte sme pracovali s dvoma veľkosťami vstupného okna, a to 24 a 48. Pri hodinovom rozlíšení to znamená, že model dostane buď históriu posledných 24 hodín, alebo 48 hodín. Tento krok bol dôležitý, pretože sme chceli sledovať aj vplyv dĺžky vstupného časového kontextu na výsledky modelu.“
+
+------------------------------------------------------------
+ČASŤ 7 – SPOLOČNÁ TRÉNINGOVÁ LOGIKA
+------------------------------------------------------------
+
+Možný text:
+„Aby bolo porovnanie modelov férové, všetky modely používali spoločnú tréningovú logiku. Použili sme optimizer Adam, loss funkciu MSE, scheduler ReduceLROnPlateau a early stopping.“
+
+Rozšírenie:
+„Počas tréningu sme sledovali train loss, validation loss, čas jednotlivých epoch a najlepší validačný výsledok. Pri zlepšení validačného výkonu sa uložil checkpoint modelu. Tým sa zabezpečilo, že sa neskôr vyhodnocoval najlepší model, nie len posledný stav po ukončení tréningu.“
+
+------------------------------------------------------------
+ČASŤ 8 – LSTM MODEL
+------------------------------------------------------------
+
+Možný text:
+„Prvou architektúrou, ktorú sme testovali, bol LSTM model. LSTM je typ rekurentnej neurónovej siete navrhnutý na sekvenčné dáta. Jeho výhodou je schopnosť pracovať s dlhšími časovými závislosťami.“
+
+Rozšírenie:
+„V našom projekte sme testovali dve konfigurácie LSTM. Config A mala menšiu kapacitu modelu a config B väčšiu. Vo finálnom porovnaní dosiahol najlepšie výsledky práve model LSTM_configB.“
+
+Môže povedať aj konkrétne:
+„LSTM_configB dosiahol najnižšie RMSE aj MAE zo všetkých testovaných modelov, ale zároveň mal najväčší počet parametrov a najdlhší čas trénovania.“
+
+------------------------------------------------------------
+PRECHOD NA PERSON 2
+------------------------------------------------------------
+
+Možná veta:
+„Po spoločnej pipeline a LSTM modeli teraz prejdeme na konvolučný prístup, teda na CNN model, kde sme sa zamerali aj na experimenty s rôznou dĺžkou vstupného okna.“
+
+============================================================
+PERSON 2 – CNN MODEL, KONFIGURÁCIE, ABLATION 24 VS 48, CNN VÝSLEDKY
+============================================================
+
+------------------------------------------------------------
+ČASŤ 1 – ČO JE CNN V TOMTO PROJEKTE
+------------------------------------------------------------
+
+Možný začiatok:
+„Moja časť projektu bola zameraná na model CNN, konkrétne na 1D konvolučnú neurónovú sieť pre časové rady. Na rozdiel od LSTM sa CNN nespolieha na rekurentné spracovanie sekvencie, ale používa konvolúcie nad časovou osou.“
+
+Rozšírenie:
+„To znamená, že model sa snaží zachytiť najmä lokálne vzory v časovom priebehu, napríklad krátkodobé zmeny, trendové úseky alebo lokálne závislosti medzi susednými časovými krokmi.“
+
+------------------------------------------------------------
+ČASŤ 2 – ARCHITEKTÚRA CNN
+------------------------------------------------------------
+
+Možný text:
+„Vstup do modelu mal tvar batch, window size, features. Keďže konvolučná vrstva Conv1d očakáva vstup v tvare batch, channels, length, v modeli sa vykonala permutácia osí.“
+
+Pokračovanie:
+„Architektúra CNN obsahovala dve 1D konvolučné vrstvy, aktivačné funkcie, pooling, dropout a finálnu lineárnu vrstvu, ktorá produkovala predikciu jednej hodnoty, teda budúcej teploty.“
+
+------------------------------------------------------------
+ČASŤ 3 – CNN KONFIGURÁCIE
+------------------------------------------------------------
+
+Možný text:
+„Testovali sa dve konfigurácie CNN. Config A bola menšia a jednoduchšia, zatiaľ čo config B bola väčšia a mala viac filtrov. Okrem toho mala aj širšie prvé kernel okno.“
+
+Konkrétne:
+„Config A používala 32 a 64 kanálov, kernel sizes 3 a 3 a dropout 0.2. Config B používala 64 a 128 kanálov, kernel sizes 5 a 3 a dropout 0.3.“
+
+------------------------------------------------------------
+ČASŤ 4 – ABLATION STUDY A OKNÁ 24 A 48
+------------------------------------------------------------
+
+Tu je dobré vysvetliť pojem:
+„Pri CNN modeli sme explicitne realizovali takzvanú ablation study pre veľkosť vstupného okna. Ablation study znamená, že cielene meníme jednu konkrétnu vlastnosť systému a sledujeme, aký to má vplyv na výsledok.“
+
+Jednoducho:
+„V našom prípade sme menili iba dĺžku vstupného okna, teda 24 vs 48, a pozorovali sme, ako to ovplyvní výkon CNN modelu.“
+
+Pokračovanie:
+„Pri okne 24 model videl posledných 24 hodín histórie. Pri okne 48 videl posledných 48 hodín. Chceli sme zistiť, či dlhší časový kontext pomôže pri predikcii.“
+
+------------------------------------------------------------
+ČASŤ 5 – CNN VÝSLEDKY PRI OKNE 24
+------------------------------------------------------------
+
+Možný text:
+„Pri okne 24 dosiahol CNN_configA test RMSE približne 1.53 °C a test MAE približne 1.17 °C. CNN_configB bol výrazne lepší a dosiahol test RMSE približne 1.01 °C a test MAE približne 0.79 °C.“
+
+Interpretácia:
+„To znamená, že už pri kratšom okne sa ukázalo, že silnejšia CNN konfigurácia bola vhodnejšia než menšia verzia modelu.“
+
+------------------------------------------------------------
+ČASŤ 6 – CNN VÝSLEDKY PRI OKNE 48
+------------------------------------------------------------
+
+Možný text:
+„Pri okne 48 sa oba CNN modely zlepšili. CNN_configA dosiahol test RMSE približne 0.91 °C a test MAE približne 0.69 °C. Najlepší CNN model bol CNN_configB, ktorý dosiahol test RMSE približne 0.87 °C a test MAE približne 0.66 °C.“
+
+Interpretácia:
+„Z toho vyplýva, že dlhšie vstupné okno bolo pre CNN výhodné a model profitoval z väčšieho časového kontextu.“
+
+------------------------------------------------------------
+ČASŤ 7 – SILNÉ A SLABÉ STRÁNKY CNN
+------------------------------------------------------------
+
+Možný text:
+„Výhodou CNN modelu bola jeho relatívne nízka výpočtová náročnosť. Najmä config A mal veľmi malý počet parametrov a krátky čas trénovania. Na druhej strane CNN nedosiahla najlepšiu presnosť spomedzi všetkých modelov.“
+
+Veľmi dôležitá poznámka:
+„Pri CNN sme si tiež všimli, že validation loss bol menej stabilný než pri LSTM a hybridných modeloch. To znamená, že konvergencia CNN bola menej pokojná a na validačnej množine sa objavovali väčšie výkyvy.“
+
+Ešte jedna veta:
+„Aj napriek tomu však CNN dosiahla rozumný test výkon, takže ju nemožno považovať za zlý model. Skôr ide o ľahší model s nižšou presnosťou a menšou stabilitou.“
+
+------------------------------------------------------------
+ČASŤ 8 – ZHRNUTIE CNN ČASTI
+------------------------------------------------------------
+
+Možný záver:
+„Za moju časť môžem zhrnúť, že najlepší CNN model bol config B s oknom 48. Výsledky ukázali, že pri tejto architektúre bolo výhodné použiť dlhšie okno a väčšiu kapacitu modelu. Napriek tomu CNN v celkovom porovnaní zaostala za najlepšími LSTM a hybridnými modelmi.“
+
+------------------------------------------------------------
+PRECHOD NA PERSON 3
+------------------------------------------------------------
+
+Možná veta:
+„Po samostatnej CNN sa teraz presunieme k hybridnému modelu, ktorý sa snaží skombinovať výhody konvolučného aj rekurentného prístupu.“
+
+============================================================
+PERSON 3 – HYBRID CNN-LSTM, JEHO NÁVRH, MOTIVÁCIA, VÝSLEDKY
+============================================================
+
+------------------------------------------------------------
+ČASŤ 1 – PREČO HYBRID
+------------------------------------------------------------
+
+Možný úvod:
+„Moja časť projektu bola zameraná na hybridný model CNN-LSTM. Myšlienka hybridu je taká, že CNN najprv extrahuje lokálne časové vzory a následne LSTM spracuje už tieto vyššie úrovne reprezentácie sekvenčným spôsobom.“
+
+Rozšírenie:
+„Cieľom bolo skombinovať dve výhody: schopnosť CNN zachytávať lokálne trendy a schopnosť LSTM modelovať časové závislosti v dlhšom horizonte.“
+
+------------------------------------------------------------
+ČASŤ 2 – AKO HYBRID FUNGUJE
+------------------------------------------------------------
+
+Možný text:
+„Vstup modelu mal rovnaký základný tvar ako pri ostatných modeloch. Najprv sa vykonala konvolučná časť, ktorá z dát extrahovala lokálne príznaky. Následne sa zachovaná sekvenčná reprezentácia poslala do LSTM vrstvy, ktorá modelovala poradie a závislosti medzi časovými krokmi.“
+
+Ďalšie vysvetlenie:
+„Dôležité je, že hybrid na rozdiel od samostatnej CNN nezhlukuje celú sekvenciu príliš skoro do jedného vektora, ale zachováva časový rozmer aj pre LSTM.“
+
+------------------------------------------------------------
+ČASŤ 3 – PREČO BOL ZVOLENÝ WINDOW 48
+------------------------------------------------------------
+
+Možný text:
+„Hybridný model bol navrhnutý s oknom 48. Dôvod bol ten, že po konvolučnom a pooling kroku sa sekvenčná dĺžka zmenší, takže dlhšie vstupné okno dávalo zmysel, aby LSTM stále dostal dostatočne bohatý časový kontext.“
+
+Ak chceš, povedz to jednoduchšie:
+„Použili sme okno 48 preto, aby aj po spracovaní v CNN zostalo pre LSTM dosť časovej informácie.“
+
+------------------------------------------------------------
+ČASŤ 4 – KONFIGURÁCIE HYBRIDU
+------------------------------------------------------------
+
+Možný text:
+„Testovali sa dve konfigurácie hybridného modelu. Rozdiel medzi nimi bol hlavne v hĺbke LSTM časti. Tým sme chceli zistiť, či po konvolučnom spracovaní pomôže hlbšia rekurentná časť.“
+
+Pokračovanie:
+„Config A mala menej rekurentných vrstiev, config B bola hlbšia. Dôležité bolo, že sa nemenilo príliš veľa vecí naraz, aby sa dal zmysluplne pozorovať vplyv tejto jednej zmeny.“
+
+------------------------------------------------------------
+ČASŤ 5 – HYBRID VÝSLEDKY
+------------------------------------------------------------
+
+Možný text:
+„Vo finálnych výsledkoch sa ukázalo, že Hybrid_configA bol lepší než Hybrid_configB. Hybrid_configA dosiahol test RMSE približne 0.664 °C a test MAE približne 0.470 °C. Hybrid_configB bol slabší, s RMSE približne 0.746 °C a MAE približne 0.555 °C.“
+
+Interpretácia:
+„To naznačuje, že pri hybridnom modeli nebolo výhodné pridávať ďalšiu rekurentnú hĺbku za každú cenu. Jednoduchšia verzia modelu bola v tomto prípade efektívnejšia.“
+
+------------------------------------------------------------
+ČASŤ 6 – SILNÉ STRÁNKY HYBRIDU
+------------------------------------------------------------
+
+Možný text:
+„Veľkou výhodou hybridu bolo, že dosiahol veľmi dobré výsledky a zároveň nebol až tak veľký ako najsilnejší LSTM model. Preto sa ukázal ako veľmi dobrý kompromis medzi presnosťou a zložitosťou.“
+
+Ďalšia veta:
+„Ak by sme nechceli model len s najlepšou presnosťou, ale model, ktorý je stále veľmi presný a zároveň menej náročný, hybrid bol veľmi silný kandidát.“
+
+------------------------------------------------------------
+ČASŤ 7 – ZHRNUTIE HYBRIDU
+------------------------------------------------------------
+
+Možný záver:
+„Za hybridnú časť môžem zhrnúť, že hybridný model potvrdil zmysel kombinácie konvolučného a rekurentného prístupu. Najlepšia verzia hybridu bola config A, ktorá ukázala veľmi dobrý kompromis medzi výkonom a veľkosťou modelu.“
+
+------------------------------------------------------------
+PRECHOD NA PERSON 4
+------------------------------------------------------------
+
+Možná veta:
+„Po predstavení všetkých troch architektúr sa teraz pozrieme na spoločnú evaluáciu, finálne porovnanie modelov a hlavné závery celého projektu.“
+
+============================================================
+PERSON 4 – METRIKY, GRAFY, SPOLOČNÉ POROVNANIE, DISKUSIA, ZÁVER
+============================================================
+
+------------------------------------------------------------
+ČASŤ 1 – AKO PREBIEHALA EVALUÁCIA
+------------------------------------------------------------
+
+Možný úvod:
+„V mojej časti projektu som sa zameral na spoločnú evaluáciu modelov, grafy, integráciu výsledkov a ich finálne porovnanie.“
+
+Pokračovanie:
+„Po natrénovaní modelov sa načítali uložené checkpointy, pustili sa na validačnú a testovaciu množinu a vypočítali sa hlavné metriky. Zároveň sa generovali grafy pre loss krivky, posledných 100 predikcií, error distribution a spoločné comparison grafy.“
+
+------------------------------------------------------------
+ČASŤ 2 – VYSVETLENIE METRÍK
+------------------------------------------------------------
+
+Toto je dobré povedať jednoducho:
+„Na hodnotenie modelov sme používali najmä RMSE a MAE. MAE, teda mean absolute error, hovorí, o koľko stupňov sa model v priemere mýli. RMSE, teda root mean squared error, tiež meria chybu v stupňoch Celzia, ale väčšie chyby penalizuje silnejšie.“
+
+Môžeš pridať:
+„Z praktického pohľadu sú obe metriky dôležité. MAE je intuitívna a hovorí o priemernej odchýlke. RMSE je citlivejšie na väčšie chyby a ukazuje, či sa občas objavujú výraznejšie odchýlky.“
+
+------------------------------------------------------------
+ČASŤ 3 – FINÁLNE POROVNANIE MODELOV
+------------------------------------------------------------
+
+Možný text:
+„Vo finálnom porovnaní modelov vyšiel najlepšie model LSTM_configB, ktorý dosiahol najnižšie test RMSE aj test MAE. Na druhom mieste sa umiestnil Hybrid_configA, ktorý bol veľmi blízko najlepšiemu modelu.“
+
+Ďalšie rozšírenie:
+„Naopak CNN modely mali síce nižšiu presnosť, ale boli výpočtovo lacnejšie. Najlepší CNN model bol CNN_configB, zatiaľ čo najmenším a najrýchlejším modelom bol CNN_configA.“
+
+Môžeš odčítať tabuľku:
+„Poradie podľa test RMSE bolo:
+prvý LSTM_configB,
+druhý Hybrid_configA,
+tretí LSTM_configA,
+štvrtý Hybrid_configB,
+piaty CNN_configB,
+a šiesty CNN_configA.“
+
+------------------------------------------------------------
+ČASŤ 4 – TRADE-OFF MEDZI PRESNOSŤOU A ZLOŽITOSŤOU
+------------------------------------------------------------
+
+Možný text:
+„Veľmi dôležité je, že sme sa nepozerali len na presnosť. Pri modeloch sme sledovali aj počet parametrov a čas trénovania. Z tohto pohľadu bol veľmi zaujímavý Hybrid_configA, pretože dosiahol skoro rovnaký výkon ako najlepší LSTM model, ale s menšou zložitosťou.“
+
+Ďalej:
+„Naopak LSTM_configB bol najpresnejší, ale mal najviac parametrov a najdlhší tréning. CNN_configA bol síce najmenej presný, ale zároveň najľahší a najrýchlejší.“
+
+------------------------------------------------------------
+ČASŤ 5 – GRAFY A KVALITATÍVNA ANALÝZA
+------------------------------------------------------------
+
+Možný text:
+„Pri loss grafoch bolo vidieť, že LSTM a hybridné modely mali stabilnejšiu konvergenciu. Validation loss bol pokojnejší a menej kolísal. Pri CNN boli validačné krivky výrazne nestabilnejšie.“
+
+Potom:
+„Grafy predicted vs target ukázali, že LSTM a hybridné modely boli bližšie k ideálnej diagonále. To znamená, že ich predikcie boli bližšie k reálnym hodnotám. CNN bola o niečo rozptýlenejšia.“
+
+A ešte:
+„Na grafoch posledných 100 časových krokov bolo vidieť, že všetky modely zachytávali základný trend teploty. LSTM a hybrid však presnejšie kopírovali zmeny priebehu, najmä pri dynamickejších úsekoch.“
+
+------------------------------------------------------------
+ČASŤ 6 – HLAVNÉ ZÁVERY
+------------------------------------------------------------
+
+Možný text:
+„Z celého projektu vyplýva, že architektúra modelu má výrazný vplyv na výsledný výkon. Pre túto konkrétnu úlohu sa ako najlepší ukázal LSTM model. Hybridný model sa ukázal ako veľmi silný kompromis a CNN ako výpočtovo ľahšia, ale menej presná alternatíva.“
+
+Môžeš to rozdeliť:
+„Najlepší celkový model:
+LSTM_configB.
+
+Najlepší kompromis:
+Hybrid_configA.
+
+Najlepší CNN model:
+CNN_configB.
+
+Najvýpočtovo najlacnejší model:
+CNN_configA.“
+
+------------------------------------------------------------
+ČASŤ 7 – LIMITÁCIE
+------------------------------------------------------------
+
+Možný text:
+„Projekt má aj viacero obmedzení. Netestovali sme veľké množstvo hyperparametrických kombinácií, nie všetky architektúry mali vo finálnej fáze úplne rovnaký režim okna a tréning prebiehal na CPU. Napriek tomu projekt splnil zadanie a umožnil zmysluplné porovnanie troch architektúr.“
+
+------------------------------------------------------------
+ČASŤ 8 – ĎALŠIA PRÁCA
+------------------------------------------------------------
+
+Možný text:
+„V budúcnosti by sa projekt dal rozšíriť o ďalšie hyperparametre, ďalšie veľkosti okna, viac seedov, GPU tréning, prípadne aj o ďalšie modely ako GRU alebo Transformer. Zaujímavá by bola aj viac-kroková predikcia namiesto predikcie jednej nasledujúcej hodnoty.“
+
+------------------------------------------------------------
+ČASŤ 9 – KONEČNÝ ZÁVER PRE CELÚ PREZENTÁCIU
+------------------------------------------------------------
+
+Možný úplný záver:
+„Na záver môžeme povedať, že projekt úspešne porovnal tri rozdielne neurónové prístupy na spoločnej forecasting úlohe. Výsledky ukázali, že najlepšiu presnosť dosiahol LSTM_configB, veľmi silný kompromis poskytol Hybrid_configA a najlepší CNN model bol CNN_configB. Celkovo sa ukázalo, že pri tejto úlohe sú rekurentné a hybridné modely vhodnejšie než čistý konvolučný prístup, hoci CNN ostáva zaujímavá z pohľadu nižšej výpočtovej náročnosti.“
+
+------------------------------------------------------------
+ÚPLNE POSLEDNÁ VETA
+------------------------------------------------------------
+
+Možnosť 1:
+„Ďakujeme za pozornosť.“
+
+Možnosť 2:
+„Ďakujeme za pozornosť a radi odpovieme na prípadné otázky.“
+
+Možnosť 3:
+„Ďakujeme za pozornosť, to je z našej strany všetko a sme pripravení na otázky.“
+
+============================================================
+STRUČNÉ OTÁZKY, KTORÉ MÔŽU PRÍSŤ NA KONCI
+============================================================
+
+1. Prečo ste použili práve dataset Jena Climate?
+Odpoveď:
+Pretože ide o vhodný benchmark pre multivariátne časové rady, obsahuje reálne meteorologické dáta, viacero príznakov a prirodzenú forecasting úlohu.
+
+2. Prečo ste nepoužili náhodné premiešanie dát?
+Odpoveď:
+Pri časových radoch by to spôsobilo data leakage, pretože model by mohol nepriamo vidieť budúce informácie.
+
+3. Prečo CNN vyšla slabšie?
+Odpoveď:
+CNN je vhodná na lokálne vzory, ale pri tejto úlohe zrejme nebola taká efektívna na zachytenie dlhodobejších časových závislostí ako LSTM alebo hybrid.
+
+4. Prečo je Hybrid_configA lepší než Hybrid_configB?
+Odpoveď:
+Vyzerá to tak, že hlbšia rekurentná časť už nepriniesla zlepšenie a skôr zvýšila zložitosť bez reálneho úžitku.
+
+5. Ktorý model by ste vybrali do praxe?
+Odpoveď:
+Ak ide o maximálnu presnosť, vybrali by sme LSTM_configB. Ak by sme chceli silný kompromis medzi presnosťou a zložitosťou, vybrali by sme Hybrid_configA.
+
+============================================================
+POZNÁMKA K TOMUTO SCENÁRU
+============================================================
+
+Tento scenár je zámerne veľmi dlhý a podrobný. Nie je určený na to, aby sa čítal slovo po slove. Má slúžiť ako veľký zdrojový text, z ktorého si každý člen tímu vyberie:
+- svoje vety,
+- vysvetlenia,
+- argumenty,
+- a formulácie podľa toho, koľko času dostane a ako chce svoju časť prezentovať.

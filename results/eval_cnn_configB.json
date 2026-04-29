@@ -1,7 +1,7 @@
 {
     "model": "cnn_configB",
     "target_column": 1,
-    "window_size": 24,
+    "window_size": 48,
     "config": {
         "name": "configB",
         "channels_1": 64,
@@ -10,17 +10,17 @@
         "kernel_size_2": 3,
         "dropout": 0.3,
         "lr": 0.001,
-        "window_size": 24,
+        "window_size": 48,
         "batch_size": 64
     },
     "metrics": {
-        "mse_scaled": 0.013611276634037495,
-        "rmse_scaled": 0.11666737604848021,
-        "mae_scaled": 0.09069790691137314,
-        "mse_real": 1.019633412361145,
-        "rmse_real": 1.009768989601654,
-        "mae_real": 0.7850003838539124,
-        "r2_real": 0.9831833644121493,
-        "num_test_samples": 10490
+        "mse_scaled": 0.010016866959631443,
+        "rmse_scaled": 0.1000842992663257,
+        "mae_scaled": 0.07633204758167267,
+        "mse_real": 0.7503728866577148,
+        "rmse_real": 0.8662406632441788,
+        "mae_real": 0.6606623530387878,
+        "r2_real": 0.9876444207065312,
+        "num_test_samples": 10466
     }
 }

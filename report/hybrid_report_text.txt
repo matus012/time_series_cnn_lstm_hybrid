@@ -1,51 +1,69 @@
 \subsection{CNN-LSTM hybrid model}
 
-The hybrid model combines a 1D convolutional block with an LSTM block in a sequential manner. The CNN extracts local temporal patterns from the raw input sequence, and the LSTM then models long-range temporal dependencies on these higher-level features. This design aims to combine the strengths of both architectures: CNN efficiency in capturing local patterns, and LSTM capability of modelling sequential dependencies.
+For our part of the project, we implemented a hybrid CNN-LSTM architecture for multivariate time-series forecasting on the Jena Climate dataset. The goal was to predict the target variable $T$ (degC) from historical meteorological measurements.
 
-The model receives input of shape $(\text{batch}, \text{window\_size}, 14)$ and produces a single predicted temperature value. Inside the model, the input is first permuted for Conv1D processing, passed through two stacked Conv1D layers with ReLU activations and a MaxPool1d layer, then permuted back and fed into a multi-layer LSTM. The hidden state from the last timestep is passed through a linear layer to produce the final scalar prediction.
+The shared preprocessing pipeline first kept only numeric columns and converted the original 10-minute sampling into hourly sampling by selecting every 6th row. After preprocessing, the dataset had shape $(70092, 14)$. The data were then split chronologically into training, validation, and test subsets in order to avoid data leakage. All inputs and the target variable were standardised using the shared pipeline.
 
-\paragraph{Parameter choices specific to the hybrid.}
-Rather than copying hyperparameters from the standalone LSTM or CNN models, we deliberately adjusted several parameters to suit the hybrid architecture:
+The hybrid model combines two different ideas. First, a 1D convolutional block extracts local temporal patterns from the input sequence. Then, an LSTM block models longer sequential dependencies using these CNN-extracted features. In this way, the hybrid architecture tries to combine the local pattern extraction ability of CNN with the sequence modelling ability of LSTM.
 
+The model receives input of shape $(\text{batch}, \text{window\_size}, 14)$ and outputs a single predicted temperature value. Inside the model, the input is first permuted for Conv1D processing, passed through convolutional layers with ReLU activations and MaxPool1d, then permuted back and processed by a multi-layer LSTM. The hidden state of the last time step is passed through a linear layer to produce the final scalar prediction.
+
+We used several parameter choices specific to the hybrid design:
 \begin{itemize}
-    \item \textbf{Input window size: $48$ (instead of $24$).} The MaxPool1d layer halves the sequence length inside the CNN block, so an input of length $48$ produces $24$ timesteps for the LSTM — matching the context available to the standalone LSTM working on raw data.
-    \item \textbf{LSTM hidden size: $32$ (instead of $64$).} Since the CNN already compresses the $14$ raw features into higher-level representations, the LSTM requires less capacity to retain relevant information. A smaller hidden size also reduces overfitting risk in the combined CNN+LSTM architecture.
-    \item \textbf{CNN kernel size: $5$.} A wider kernel provides richer local context per extracted feature, allowing the LSTM to focus on long-range dependencies rather than re-capturing short-term trends. This parameter choice directly optimises the division of labour between the CNN and LSTM components.
-    \item \textbf{MaxPool1d with kernel size $2$.} The standalone CNN uses AdaptiveAvgPool1d($1$), which collapses the entire sequence into a single vector — appropriate when the CNN output goes directly to a linear layer. In the hybrid, we must preserve the sequence dimension for the LSTM, so MaxPool1d($2$) is used as a compromise between noise reduction and maintaining sufficient temporal context.
+    \item \textbf{Input window size: $48$.} Because the hybrid contains a MaxPool1d layer that reduces the temporal dimension, a larger input window was chosen to preserve sufficient sequential context for the LSTM part.
+    \item \textbf{CNN channels: $64$.} This gives the convolutional part enough capacity to extract informative local features before passing them to the recurrent block.
+    \item \textbf{Kernel size: $5$.} A wider temporal kernel allows the model to capture richer short-term temporal patterns before sequential modelling.
+    \item \textbf{LSTM hidden size: $32$.} Since the CNN already compresses the original 14-dimensional input into higher-level features, a smaller hidden size is sufficient and helps keep the model compact.
 \end{itemize}
 
-Other parameters were intentionally kept identical to the standalone models: dropout $0.2$, learning rate $10^{-3}$, batch size $64$, maximum $50$ epochs, and early stopping with patience $10$. These training-related parameters have no hybrid-specific justification to change and keeping them fixed ensures fair comparison across LSTM, CNN, and hybrid models.
+Other training parameters were kept the same as in the shared project pipeline:
+\begin{itemize}
+    \item optimizer: Adam,
+    \item loss function: MSELoss,
+    \item learning rate: $10^{-3}$,
+    \item batch size: $64$,
+    \item maximum epochs: $50$,
+    \item early stopping patience: $10$,
+    \item scheduler: ReduceLROnPlateau,
+    \item random seed: $42$.
+\end{itemize}
 
 \paragraph{Tested configurations.}
-We evaluated two configurations that differ only in the number of LSTM layers, strictly following the project rule of changing a single variable between configurations:
+We evaluated two hybrid configurations that differed only in the number of LSTM layers:
 
 \begin{itemize}
     \item Config A: $2$ LSTM layers
     \item Config B: $3$ LSTM layers
 \end{itemize}
 
-The choice of \texttt{lstm\_num\_layers} as the varying parameter was motivated by a hybrid-specific research question: \emph{Does the LSTM require additional depth when the CNN has already extracted features?} The standalone LSTM author tested hidden size variations ($64$ vs $128$), and the standalone CNN author tested channel and kernel size variations. None of these experiments addressed LSTM depth in the context of CNN-preprocessed features, making this a meaningful contribution to the project. We chose the range $2$ vs $3$ (rather than $1$ vs $2$) because PyTorch disables LSTM dropout when \texttt{num\_layers=1}, which would implicitly change two parameters simultaneously. With $2$ vs $3$ layers, dropout remains active in both configurations and only one variable truly changes.
-
-Training used the shared training pipeline with the Adam optimizer, MSE loss, and ReduceLROnPlateau scheduler. All experiments were run on CPU with random seed $42$ for reproducibility.
+This was a clean ablation of recurrent depth inside the hybrid setting. The motivation was to test whether the LSTM benefits from additional depth after the CNN has already extracted local features.
 
 \paragraph{Results.}
-The final test results on the Jena Climate test set are summarised below:
+The final shared evaluation on the Jena Climate test set produced the following results:
 
 \begin{table}[h]
 \centering
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccc}
 \hline
-Model & Window & Params & MAE [$^\circ$C] & RMSE [$^\circ$C] & $R^2$ \\
+Model & Window & Params & MAE [$^\circ$C] & RMSE [$^\circ$C] \\
 \hline
-Hybrid Config A ($2$ layers) & $48$ & $46{,}113$ & $0.4938$ & $0.6908$ & $0.9921$ \\
-Hybrid Config B ($3$ layers) & $48$ & $54{,}561$ & $0.5129$ & $0.7085$ & $0.9917$ \\
+Hybrid Config A ($2$ layers) & $48$ & $46{,}113$ & $0.4701$ & $0.6636$ \\
+Hybrid Config B ($3$ layers) & $48$ & $54{,}561$ & $0.5546$ & $0.7464$ \\
 \hline
 \end{tabular}
 \caption{Final hybrid CNN-LSTM results on the test set}
 \end{table}
 
-Config A ($2$ LSTM layers) outperformed Config B ($3$ layers) across all metrics, albeit by a small margin. This result supports our hypothesis: once the CNN has extracted meaningful local features, the LSTM does not benefit from additional depth. The extra layer in Config B introduces more parameters ($+18\%$) without improving predictive performance, and likely slightly increases overfitting risk.
+The results show that Config A outperformed Config B on both evaluation metrics. Hybrid Config A achieved lower MAE and lower RMSE while also using fewer parameters. In contrast, adding a third LSTM layer increased model size without improving performance.
 
-The best hybrid model (Config A) achieves MAE of $0.49\,^\circ$C and $R^2 = 0.9921$, indicating that on average the prediction error is less than half a degree Celsius. This demonstrates that the hybrid architecture is a viable approach for multivariate time series forecasting, combining CNN feature extraction with LSTM sequential modelling in a parameter-efficient way.
+More specifically:
+\begin{itemize}
+    \item Hybrid Config A achieved test MAE of $0.4701\,^\circ$C and RMSE of $0.6636\,^\circ$C.
+    \item Hybrid Config B achieved test MAE of $0.5546\,^\circ$C and RMSE of $0.7464\,^\circ$C.
+\end{itemize}
 
-For the hybrid part, the final selected model is \textbf{Config A} with $2$ LSTM layers, as it achieved the best accuracy with fewer parameters than Config B.
+This suggests that in the hybrid setting, increasing recurrent depth beyond two LSTM layers was not beneficial. Once the CNN block extracted useful local features, a deeper recurrent block likely introduced unnecessary complexity rather than better generalisation.
+
+Another important point is that Hybrid Config A performed very strongly in the overall project comparison. It was one of the best-performing models in the project and represented a very good trade-off between predictive accuracy and model complexity. Although the strongest LSTM achieved slightly better absolute accuracy in the final ranking, the hybrid model remained highly competitive while using substantially fewer parameters.
+
+Therefore, for the hybrid part of the project, the final selected model is \textbf{Hybrid Config A} with $2$ LSTM layers, because it achieved the best overall hybrid performance on the Jena Climate test set.

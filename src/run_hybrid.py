@@ -1,14 +1,20 @@
-"""Training script for CNN-LSTM hybrid model — both configs.
+"""Training script for hybrid CNN-LSTM model configurations.
 
-Hybrid-specific parameter choices (see hybrid_param_choices.txt for details):
-    - window_size = 48  (compensates for MaxPool sequence halving)
-    - lstm_hidden_size = 32  (smaller — CNN already compressed features)
-    - kernel_size = 5  (wider local context per feature)
-    - MaxPool kernel = 2  (halves sequence: 48 -> 24 for LSTM)
+This script trains two hybrid variants for multivariate time-series forecasting
+on the Jena Climate dataset.
 
-Configs differ ONLY in lstm_num_layers (2 vs 3) — clean ablation of LSTM depth
-in the hybrid setting, testing whether extra LSTM depth helps when features
-are already CNN-processed.
+Hybrid-specific design choices:
+    - window_size = 48
+    - cnn_channels = 64
+    - kernel_size = 5
+    - lstm_hidden_size = 32
+    - MaxPool1d with kernel size 2 inside the model
+
+The two tested configurations differ only in the number of LSTM layers:
+    - configA: 2 LSTM layers
+    - configB: 3 LSTM layers
+
+This allows a clean comparison of LSTM depth inside the hybrid setting.
 """
 
 import sys
@@ -16,7 +22,7 @@ import sys
 from src.dataset import prepare_data
 from src.models.hybrid import HybridModel
 from src.train import train_model, save_results
-from src.utils import set_seed, get_device
+from src.utils import get_device, set_seed
 
 
 def run_config(
@@ -32,16 +38,16 @@ def run_config(
     patience: int = 10,
     batch_size: int = 64,
 ) -> None:
-    """Run a single Hybrid CNN-LSTM training configuration."""
-    print(f"\n{'='*60}")
+    """Run a single hybrid CNN-LSTM training configuration."""
+    print(f"\n{'=' * 60}")
     print(f"Hybrid CNN-LSTM {config_name} | num_layers={lstm_num_layers} | window={window_size}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     set_seed(42)
     device = get_device()
 
-    all_loaders, target_col = prepare_data(batch_size=batch_size)
-    train_loader, val_loader, test_loader = all_loaders[window_size]
+    all_loaders, _ = prepare_data(batch_size=batch_size)
+    train_loader, val_loader, _ = all_loaders[window_size]
 
     model = HybridModel(
         input_size=14,
@@ -64,7 +70,6 @@ def run_config(
         save_path=save_path,
     )
 
-    # Add config metadata
     results["config"] = {
         "name": config_name,
         "cnn_channels": cnn_channels,

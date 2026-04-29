@@ -32,9 +32,9 @@ def run_config(
     set_seed(42)
     device = get_device()
 
-    all_loaders, target_col = prepare_data(batch_size=batch_size)
-    train_loader, val_loader, test_loader = all_loaders[window_size]
-
+    all_loaders, _ = prepare_data(batch_size=batch_size)
+    train_loader, val_loader, _ = all_loaders[window_size]
+    
     model = CNNModel(
         input_size=14,
         channels_1=channels_1,
