@@ -1,0 +1,9 @@
+model,config,window,best_val_loss,params,epochs,train_time_s,test_RMSE_C,test_MAE_C,notes
+LSTM,A,24,0.007085,53825,21,226.58,0.6964,0.5018,baseline match
+LSTM,B,24,0.007243,205953,29,599.31,0.6570,0.4636,baseline match
+CNN,A,24,22.777275,7649,12,64.90,1.5287,1.1726,val_loss in unscaled units
+CNN,B,24,3.036929,29377,13,84.15,1.0098,0.7850,val_loss in unscaled units
+CNN,A,48,4.690764,7649,17,87.39,0.9084,0.6911,val_loss in unscaled units
+CNN,B,48,1.794162,29377,26,215.36,0.8662,0.6607,val_loss in unscaled units
+Hybrid,A,48,0.007100,46113,40,523.04,0.6636,0.4701,best test RMSE @w48
+Hybrid,B,48,0.008487,54561,16,216.29,0.7464,0.5546,
