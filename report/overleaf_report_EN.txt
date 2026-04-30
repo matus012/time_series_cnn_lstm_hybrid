@@ -239,15 +239,21 @@ CNN_configB, window 48:
 Again, configB outperformed configA. In addition, both CNN configurations improved when moving from window 24 to window 48.
 
 7.3 Interpretation of CNN results
-The CNN models performed reasonably well from the test-set perspective. However, they did not achieve the best results overall. On the other hand, they had lower complexity and shorter training time than the stronger LSTM configurations.
+The CNN models did not achieve the best results overall, but they had lower complexity and shorter training time than the stronger LSTM configurations. A key sanity finding is that at window 24 the CNN models failed to beat the trivial persistence baseline (RMSE 0.9631 °C): CNN_configA reached only 1.5287 °C and CNN_configB 1.0098 °C. Only at window 48 did both CNN configurations cross below the baseline (0.9084 and 0.8662 °C respectively).
 
-An important finding was that CNN benefited from the longer input window. This suggests that for a convolutional architecture, a broader temporal context was useful for this forecasting task.
+An important finding was that CNN benefited substantially from the longer input window. This suggests that for a convolutional architecture, a broader temporal context was needed before the model could extract useful structure for this forecasting task.
 
-At the same time, CNN showed less stable validation behavior than LSTM and hybrid models. The validation loss curves contained strong oscillations and large jumps, which may indicate greater sensitivity to the selected validation segment or lower robustness of convergence.
+At the same time, CNN showed less stable validation behavior than LSTM and hybrid models. The validation loss curves contained strong oscillations and large jumps, which may indicate greater sensitivity to the selected validation segment or lower robustness of convergence. A related observation is the noticeable gap between CNN validation loss and CNN test RMSE: the validation segment appears to be systematically harder for the convolutional models than the test segment, so test-set performance alone overstates how well these CNN configurations generalize.
 
 8. FINAL OVERALL MODEL COMPARISON
 
-After retraining all final models and running shared evaluation, the following final ranking was obtained.
+After retraining all final models and running shared evaluation, the following final ranking was obtained. As a reference point, a trivial persistence baseline (predicting the previous hour's temperature) is also reported; every final model except the two CNN configurations at window 24 beats this baseline.
+
+Persistence baseline (ŷ_t = y_{t-1}):
+- test RMSE: 0.9631 °C
+- test MAE: 0.6778 °C
+- parameter count: 0
+- total training time: 0 s
 
 LSTM_configA:
 - test RMSE: 0.6964 °C
@@ -296,7 +302,7 @@ Ranking by RMSE:
 9. DISCUSSION OF RESULTS
 
 9.1 Most accurate model
-The most accurate model was LSTM_configB. It achieved the lowest test RMSE and the lowest test MAE. This means that for this task, the stronger LSTM architecture was able to make the best use of the information contained in the multivariate sequence.
+The most accurate model on the test set was LSTM_configB, with the lowest test RMSE (0.6570 °C) and the lowest test MAE (0.4636 °C). However, the margin over Hybrid_configA (RMSE 0.6636 °C, MAE 0.4701 °C) is small — well under one hundredth of a degree Celsius in RMSE — and likely within the noise of a single training run with a fixed random seed. The conclusion that "LSTM_configB is the best" should therefore be read as "LSTM_configB and Hybrid_configA are statistically indistinguishable at the top of the ranking, with LSTM_configB nominally first." Both results indicate that for this task, recurrent processing of the multivariate sequence is highly effective; the hybrid model achieves comparable accuracy with substantially fewer parameters.
 
 9.2 Best trade-off
 A particularly interesting result was Hybrid_configA. Although it was not the absolute best, it achieved nearly the same predictive performance as the strongest LSTM model while using far fewer parameters. Because of that, it can be considered one of the best trade-offs between performance and complexity.
